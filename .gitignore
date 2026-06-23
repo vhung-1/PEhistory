@@ -4,7 +4,6 @@ __pycache__/
 .DS_Store
 _archive/
 tool_results/
-# regenerated side-artifacts
 bt_ready.json
 perpair.json
 /tmp/

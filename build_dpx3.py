@@ -1,8 +1,7 @@
-# build_dpx3.py - build daily_px.json (daily price panel) via the scale-factor splice.
-# See CLAUDE.md §7c. PER REFRESH update: SP_PULLS_DIR (env; folder holding the S&P
-# get_prices_from_identifiers_*.json pulls), and the RECENT/EARLY filename constants
-# + the date boundaries in their branches. Base = previously-stored full-history pulls
-# (they define the reference adjustment basis that early/recent are scaled onto).
+# build_dpx3.py - build daily_px.json via the scale-factor splice. See CLAUDE.md §7c.
+# PER REFRESH update: SP_PULLS_DIR (env; folder with the S&P get_prices_*.json pulls),
+# the RECENT/EARLY filename constants, and the date boundaries in their branches.
+# Base = previously-stored full-history pulls (define the reference adjustment basis).
 import os
 import json,glob,os,statistics
 d=json.load(open('data.json')); DATES=d['dates']; UNIV=set(d['pe'].keys())

@@ -101,6 +101,12 @@ canvas{display:block;width:100%;height:100%;}
 .measure .mclear{cursor:pointer;color:var(--accent);text-decoration:underline;font-size:11px;}
 .measure.armed .mlead{color:var(--accent);}
 .chart-host canvas{cursor:crosshair;}
+#sw-table th,#sw-table td{padding:7px 14px;border-bottom:1px solid var(--line);font-size:13px;}
+#sw-table th{text-align:right;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line2);}
+#sw-table th:first-child,#sw-table td:first-child{text-align:left;}
+#sw-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+#sw-table tbody tr:hover{background:var(--panel2);}
+#sw-chart svg{width:100%;height:340px;display:block;}
 
 .tblwrap{margin-top:18px;overflow:auto;}
 table{border-collapse:collapse;width:100%;font-size:12.5px;}
@@ -290,6 +296,7 @@ footer b{color:var(--muted);}
       <div class="tabs" role="tablist">
         <button role="tab" aria-selected="true" data-tab="pairs">Pairs</button>
         <button role="tab" aria-selected="false" data-tab="namepe">Name P/E</button>
+        <button role="tab" aria-selected="false" data-tab="software">Software</button>
         <button role="tab" aria-selected="false" data-tab="flags">Flags</button>
         <button role="tab" aria-selected="false" data-tab="summary">Summary</button>
         <button role="tab" aria-selected="false" data-tab="screen">Screen</button>
@@ -376,6 +383,27 @@ footer b{color:var(--muted);}
       <div class="chart-host" id="np-host"><div id="np-chart"></div><div class="np-read" id="np-read"></div></div>
     </div>
     <div class="note" id="np-note" style="border:0;padding-top:12px;"></div>
+  </section>
+
+  <!-- ============ SOFTWARE (reference) ============ -->
+  <section class="view" id="view-software" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Focus</label><select id="sw-a"></select></div>
+      <div class="ctl"><label>Compare to</label><select id="sw-b"></select></div>
+      <div class="ctl"><label>History</label><div class="ranges" id="sw-range">
+        <button data-m="12">1Y</button><button data-m="36">3Y</button><button data-m="60">5Y</button><button data-m="0" aria-selected="true">Max</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Forward P/E reference for JKHY &mdash; choose the focus and a comparator (software average/median or any single name). Not tracked in pairs, screens or the backtest.</div>
+    </div>
+    <div class="stats" id="sw-stats"></div>
+    <div class="panel chartcard">
+      <div class="chart-top">
+        <div class="chart-title" id="sw-title">Forward P/E</div>
+        <div class="legend" id="sw-legend"></div>
+      </div>
+      <div id="sw-chart"></div>
+    </div>
+    <div class="tblwrap"><table id="sw-table"><thead></thead><tbody></tbody></table></div>
+    <div class="note" id="sw-note" style="border:0;padding-top:12px;"></div>
   </section>
 
   <section class="view" id="view-flags" role="tabpanel">
@@ -539,6 +567,7 @@ const BT = __BTDATA__;
 const QD = __QDATA__;
 const DPXMETA = __DPX__;
 const DPX = DPXMETA.px;
+const SW = __SWDATA__;
 const D = DATA.dates, PE = DATA.pe, SEC = DATA.sectors, SECOF = DATA.sector_of;
 const N = D.length;
 const ALL_TICKERS = Object.keys(PE).sort();
@@ -585,7 +614,7 @@ function sectorMetrics(sec){
 
 // ---------- state ----------
 const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pairs',
-          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:''};
+          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
 
 function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
 function sectorList(){return Object.keys(SEC);}
@@ -931,6 +960,70 @@ function renderMatrix(){
 }
 
 // ---------- tabs ----------
+// ---------- SOFTWARE (reference for JKHY) ----------
+const SWLBL={'MSFT US':'Microsoft','ORCL US':'Oracle','CRM US':'Salesforce','NOW US':'ServiceNow','WDAY US':'Workday','ADBE US':'Adobe','INTU US':'Intuit','ADSK US':'Autodesk'};
+function swMean(arr){const v=arr.filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function swAggAt(i,fn){return fn(SW.names.map(t=>SW.pe[t][i]));}
+function swSeries(key){
+  if(key==='JKHY US')return PE['JKHY US'];
+  if(key==='~avg')return D.map((_,i)=>swAggAt(i,swMean));
+  if(key==='~med')return D.map((_,i)=>swAggAt(i,median));
+  return SW.pe[key]||D.map(()=>null);
+}
+function swLabel(key){return key==='~avg'?'Software average':key==='~med'?'Software median':key==='JKHY US'?'JKHY':(SWLBL[key]||key.replace(' US',''));}
+function swOpts(){return [{v:'JKHY US',t:'JKHY (Jack Henry)'},{v:'~avg',t:'Software average'},{v:'~med',t:'Software median'}].concat(SW.names.map(t=>({v:t,t:SWLBL[t]+' ('+t.replace(' US','')+')'})));}
+function swPctile(arr,x){const a=arr.filter(v=>v!=null).slice().sort((p,q)=>p-q);if(!a.length||x==null)return null;let c=0;for(const v of a)if(v<=x)c++;return c/a.length*100;}
+function renderSW(){
+  const m=ST.swM||0,last=D[N-1];let start=0;
+  if(m){const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);const cs=cut.toISOString().slice(0,10);start=D.findIndex(d=>d>=cs);if(start<0)start=0;}
+  const A=ST.swA,B=ST.swB,sA=swSeries(A),sB=swSeries(B);
+  const idxs=[];for(let i=start;i<N;i++)idxs.push(i);const n=idxs.length;
+  let lo=Infinity,hi=-Infinity;const con=v=>{if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v;}};
+  idxs.forEach(i=>{con(sA[i]);con(sB[i]);SW.names.forEach(t=>con(SW.pe[t][i]));});
+  if(!(hi>lo)){lo=0;hi=1;}const pad=(hi-lo)*0.06;lo-=pad;hi+=pad;if(lo<0)lo=0;
+  const W=900,H=380,PADL=52,PADR=14,PADT=14,PADB=28,pw=W-PADL-PADR,ph=H-PADT-PADB;
+  const X=k=>PADL+(n<=1?0:k/(n-1)*pw),Y=v=>PADT+(hi===lo?ph/2:(hi-v)/(hi-lo)*ph);
+  const path=arr=>{let d='',pen=false;arr.forEach((v,k)=>{if(v==null){pen=false;return;}d+=(pen?'L':'M')+X(k).toFixed(1)+' '+Y(v).toFixed(1)+' ';pen=true;});return d.trim();};
+  let grid='';npTicks(lo,hi,7).forEach(tv=>{const y=Y(tv).toFixed(1);grid+=`<line x1="${PADL}" y1="${y}" x2="${W-PADR}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${PADL-6}" y="${(+y+3).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${tv}</text>`;});
+  let xax='',pv=null;idxs.forEach((i,k)=>{const y=D[i].slice(0,4);if(y!==pv){pv=y;xax+=`<text x="${X(k).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${y}</text>`;}});
+  let soft='';SW.names.forEach(t=>{if(t!==A&&t!==B)soft+=`<path d="${path(idxs.map(i=>SW.pe[t][i]))}" fill="none" stroke="#C9D2D9" stroke-width="1" opacity="0.6"/>`;});
+  const pB=`<path d="${path(idxs.map(i=>sB[i]))}" fill="none" stroke="#E2733A" stroke-width="2.4"/>`;
+  const pA=`<path d="${path(idxs.map(i=>sA[i]))}" fill="none" stroke="#15697A" stroke-width="2.4"/>`;
+  const la=sA[N-1],lb=sB[N-1];
+  const dots=(la!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(la).toFixed(1)}" r="3.6" fill="#15697A"/>`:'')+(lb!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="3.6" fill="#E2733A"/>`:'');
+  document.getElementById('sw-chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${grid}<line x1="${PADL}" y1="${PADT}" x2="${PADL}" y2="${PADT+ph}" stroke="var(--line2)" stroke-width="1"/>${xax}${soft}${pB}${pA}${dots}</svg>`;
+  document.getElementById('sw-legend').innerHTML=
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#15697A;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>${swLabel(A)}</span>`+
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#E2733A;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>${swLabel(B)}</span>`+
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#C9D2D9;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>other software</span>`;
+  document.getElementById('sw-title').textContent=swLabel(A)+' vs '+swLabel(B)+' \u2014 forward P/E';
+  const gap=(la!=null&&lb!=null&&lb!==0)?(la/lb-1)*100:null,ap=swPctile(sA,la);
+  const cards=[{k:swLabel(A)+' P/E',v:la==null?'\u2014':la.toFixed(1)+'x'},
+    {k:swLabel(B)+' P/E',v:lb==null?'\u2014':lb.toFixed(1)+'x'},
+    {k:swLabel(A)+' vs '+swLabel(B),v:gap==null?'\u2014':(gap>=0?'+':'\u2212')+Math.abs(gap).toFixed(1)+'%',cls:gap==null?'':(gap>=0?'pos':'neg')},
+    {k:swLabel(A)+' 5Y %ile',v:ap==null?'\u2014':ap.toFixed(0)+'<small>th</small>'}];
+  document.getElementById('sw-stats').innerHTML=cards.map(c=>`<div class="stat"><div class="k">${c.k}</div><div class="v num ${c.cls||''}">${c.v}</div></div>`).join('');
+  const isSel=key=>key===A||key===B;
+  const rows=[{key:'JKHY US',nm:'JKHY <span style="color:var(--muted)">Jack Henry</span>',cur:PE['JKHY US'][N-1]},
+              {key:'~avg',nm:'Software average',cur:swAggAt(N-1,swMean),agg:1},
+              {key:'~med',nm:'Software median',cur:swAggAt(N-1,median),agg:1}];
+  SW.names.map(t=>({key:t,nm:(SWLBL[t]||t)+' <span style="color:var(--muted)">'+t.replace(' US','')+'</span>',cur:SW.pe[t][N-1]}))
+          .filter(r=>r.cur!=null).sort((a,b)=>b.cur-a.cur).forEach(r=>rows.push(r));
+  const tbl=document.getElementById('sw-table');
+  tbl.querySelector('thead').innerHTML='<tr><th>Name</th><th>Fwd P/E</th><th>5Y &percnt;ile</th></tr>';
+  tbl.querySelector('tbody').innerHTML=rows.map(r=>{
+    const p=swPctile(swSeries(r.key),r.cur),pl=p==null?'\u2014':p.toFixed(0);
+    const col=r.key===A?'#15697A':r.key===B?'#E2733A':'';
+    const st=isSel(r.key)?` style="font-weight:700;color:${col}"`:(r.agg?' style="font-weight:600;color:#9aa3ab"':'');
+    return `<tr${st}><td>${r.nm}</td><td class="num">${r.cur.toFixed(1)}x</td><td class="num">${pl}</td></tr>`;}).join('');
+  document.getElementById('sw-note').innerHTML='Software aggregates span '+SW.names.length+' names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). NTM forward P/E from Bloomberg, weekday series, as of <b>'+SW.asof+'</b>. 5Y %ile = where today sits within that series\u2019 own embedded history. <b>Reference only</b> \u2014 not part of Pairs, Screen, Matrix, Consistency or the Backtest. JKHY is drawn from the main coverage panel.';
+}
+(function initSW(){const o=swOpts();fillSelV(document.getElementById('sw-a'),o,ST.swA);fillSelV(document.getElementById('sw-b'),o,ST.swB);
+  document.getElementById('sw-a').onchange=e=>{ST.swA=e.target.value;renderSW();};
+  document.getElementById('sw-b').onchange=e=>{ST.swB=e.target.value;renderSW();};
+  document.querySelectorAll('#sw-range button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#sw-range button').forEach(x=>x.removeAttribute('aria-selected'));b.setAttribute('aria-selected','true');ST.swM=+b.dataset.m;renderSW();});
+})();
+
 function switchTab(t){
   ST.tab=t;
   document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
@@ -942,6 +1035,7 @@ function switchTab(t){
   if(t==='matrix')renderMatrix();
   if(t==='grid')renderGrid();
   if(t==='namepe')renderNamePE();
+  if(t==='software')renderSW();
   if(t==='coverage')renderCoverage();
   if(t==='consistency')renderConsistency();
   if(t==='backtest')renderBacktest();
