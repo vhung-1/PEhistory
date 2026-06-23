@@ -1,9 +1,8 @@
-name: Build & gate dashboard
+name: Build, gate & deploy dashboard
 
-# Rebuilds Relative_PE_Dashboard.html from source and runs the CLAUDE.md §4
-# validation gate on every push/PR to main. Publishing is handled by GitHub
-# Pages "Deploy from a branch" (Settings -> Pages -> Source: Deploy from a
-# branch -> main / root), which serves the committed, gate-passed files.
+# On push/PR to main: rebuild Relative_PE_Dashboard.html and run the CLAUDE.md
+# §4 gate (node --check + bt_verify.js 39/39). On push to main only, deploy the
+# gate-passed site to GitHub Pages (Settings -> Pages -> Source: GitHub Actions).
 
 on:
   push:
@@ -14,6 +13,12 @@ on:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -45,8 +50,24 @@ jobs:
           node bt_verify.js | tee gate.out
           grep -q "ALL CHECKS PASSED (39 passed)" gate.out
 
-      - name: Confirm committed HTML matches a fresh build
+      - name: Stage site
         run: |
           set -euo pipefail
-          git diff --quiet -- Relative_PE_Dashboard.html \
-            || echo "::warning::Committed Relative_PE_Dashboard.html differs from a fresh build.py output"
+          mkdir -p _site
+          cp index.html Relative_PE_Dashboard.html _site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'push'   # build+gate run on PRs; deploy only on push to main
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment
