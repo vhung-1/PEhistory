@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relative P/E Dashboard — Diversified Financials</title>
+<style>
+:root{
+  --ink:#0F1A24; --ink2:#33454f; --muted:#6B7C89; --faint:#9AA8B2;
+  --line:#E5EAEE; --line2:#D3DBE1; --bg:#F6F8F9; --panel:#FFFFFF; --panel2:#FBFCFD;
+  --accent:#0E7C8B; --accent-d:#0a5b66; --series:#15697A; --avg:#E2733A;
+  --cheap:#2E7D52; --cheapbg:#E3F1E8; --rich:#C0392B; --richbg:#FBE7E4;
+  --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","JetBrains Mono","Roboto Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;}
+.wrap{max-width:1240px;margin:0 auto;padding:0 22px 56px;}
+
+header{position:sticky;top:0;z-index:30;background:rgba(246,248,249,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line2);}
+.hdr{max-width:1240px;margin:0 auto;padding:14px 22px 12px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.brand{display:flex;align-items:center;gap:12px;}
+.tick{width:13px;height:30px;border-radius:2px;background:linear-gradient(var(--avg) 0 33%, var(--series) 33% 100%);flex:none;box-shadow:0 1px 0 rgba(0,0,0,.05);}
+.brand h1{font-size:17px;font-weight:650;letter-spacing:-.2px;margin:0;line-height:1.1;}
+.brand .eyebrow{font-size:10px;font-weight:650;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent);margin-bottom:2px;}
+.meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5;}
+.meta b{color:var(--ink2);font-weight:600;}
+.tabs{display:inline-flex;background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px;}
+.tabs button{font-family:var(--sans);font-size:12px;font-weight:560;color:var(--muted);background:none;border:0;padding:7px 14px;border-radius:7px;cursor:pointer;transition:.13s;letter-spacing:.1px;}
+.tabs button:hover{color:var(--ink);}
+.tabs button[aria-selected="true"]{background:var(--ink);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12);}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;box-shadow:0 1px 2px rgba(16,26,36,.04),0 6px 22px -16px rgba(16,26,36,.18);}
+.view{display:none;animation:fade .22s ease;}
+.view.active{display:block;}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+
+/* pairs controls — two sides */
+.pcontrols{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap;padding:16px 18px;margin-top:18px;}
+.pside{flex:1;min-width:250px;display:flex;flex-direction:column;gap:7px;}
+.pside .sh{font-size:10px;font-weight:650;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
+.pside .sh b{color:var(--series);} .pside.b .sh b{color:var(--avg);}
+.pside .row{display:flex;gap:8px;}
+.pside .row select:first-child{flex:0 0 42%;}
+.swapwrap{display:flex;align-items:center;padding-bottom:2px;}
+.swap{flex:none;width:38px;height:38px;border-radius:9px;border:1px solid var(--line2);background:var(--panel2);color:var(--accent);font-size:16px;cursor:pointer;transition:.16s;display:flex;align-items:center;justify-content:center;}
+.swap:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:rotate(180deg);}
+.xnote{font-size:10px;color:var(--faint);align-self:center;}
+select{font-family:var(--sans);font-size:13px;font-weight:540;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:8px 30px 8px 11px;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%236B7C89' stroke-width='1.5' fill='none' stroke-linecap='round'/></svg>");
+  background-repeat:no-repeat;background-position:right 11px center;width:100%;transition:.12s;}
+select:hover{border-color:var(--accent);}
+select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,139,.13);}
+.ctl{display:flex;flex-direction:column;gap:5px;}
+.ctl label{font-size:10px;font-weight:650;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
+
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--line);border-radius:11px;overflow:hidden;margin:14px 0;border:1px solid var(--line);}
+.stat{background:var(--panel);padding:13px 15px;}
+.stat .k{font-size:10px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:5px;white-space:nowrap;}
+.stat .v{font-size:22px;font-weight:600;letter-spacing:-.5px;line-height:1;}
+.stat .v small{font-size:12px;font-weight:540;color:var(--muted);letter-spacing:0;}
+.pos{color:var(--rich);} .neg{color:var(--cheap);}
+
+.chartcard{padding:18px 18px 14px;}
+.chart-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;gap:12px;flex-wrap:wrap;}
+.chart-title{font-size:14px;font-weight:620;letter-spacing:-.1px;}
+.chart-title span{color:var(--muted);font-weight:500;}
+.legend{display:flex;gap:16px;font-size:11px;color:var(--ink2);align-items:center;}
+.legend i{display:inline-block;width:16px;height:0;border-top-width:2.5px;border-top-style:solid;margin-right:6px;vertical-align:middle;}
+.chart-host{position:relative;width:100%;height:380px;}
+canvas{display:block;width:100%;height:100%;}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;border-radius:7px;padding:7px 10px;font-size:11px;line-height:1.5;opacity:0;transition:opacity .1s;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap;}
+.tip .d{color:var(--faint);font-size:10px;letter-spacing:.4px;margin-bottom:1px;}
+.tip b{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.ranges{display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:3px;}
+.ranges button{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);background:none;border:0;padding:6px 13px;border-radius:6px;cursor:pointer;transition:.12s;letter-spacing:.3px;}
+.ranges button:hover{color:var(--ink);}
+.ranges button[aria-selected="true"]{background:var(--ink);color:#fff;}
+.chart-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:18px;flex-wrap:wrap;}
+
+.gauge{flex:1;min-width:260px;}
+.gauge .glab{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.3px;}
+.gtrack{position:relative;height:8px;border-radius:5px;background:linear-gradient(90deg,var(--cheapbg),#eef2f4 50%,var(--richbg));border:1px solid var(--line2);}
+.gmark{position:absolute;top:50%;transform:translate(-50%,-50%);}
+.gavg{width:2px;height:16px;background:var(--avg);border-radius:2px;}
+.gcur{width:13px;height:13px;border-radius:50%;border:2.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.3);}
+.gauge .gends{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:5px;}
+.gauge .gends .num{color:var(--ink2);font-weight:600;}
+
+.note{font-size:11px;color:var(--muted);padding:14px 18px;border-top:1px solid var(--line);line-height:1.6;}
+.note b{color:var(--ink2);}
+.measure{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:11px 2px 0;min-height:19px;font:12px/1.45 var(--sans);color:var(--muted);}
+.measure .mlead{color:var(--ink2);font-weight:600;}
+.measure .mret{font:600 13px var(--mono);}
+.measure .mret.up{color:#2E7D52;}
+.measure .mret.dn{color:#C0392B;}
+.measure .mdet{font:12px var(--mono);color:var(--muted);}
+.measure .mhint{color:var(--muted);}
+.measure .mclear{cursor:pointer;color:var(--accent);text-decoration:underline;font-size:11px;}
+.measure.armed .mlead{color:var(--accent);}
+.chart-host canvas{cursor:crosshair;}
+#sw-table th,#sw-table td{padding:7px 14px;border-bottom:1px solid var(--line);font-size:13px;}
+#sw-table th{text-align:right;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line2);}
+#sw-table th:first-child,#sw-table td:first-child{text-align:left;}
+#sw-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+#sw-table tbody tr:hover{background:var(--panel2);}
+#sw-chart svg{width:100%;height:340px;display:block;}
+
+.tblwrap{margin-top:18px;overflow:auto;}
+table{border-collapse:collapse;width:100%;font-size:12.5px;}
+thead th{position:sticky;top:0;background:var(--ink);color:#fff;font-weight:560;font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;padding:10px 11px;text-align:right;cursor:pointer;user-select:none;white-space:nowrap;border-bottom:2px solid var(--ink);}
+thead th:first-child{text-align:left;border-top-left-radius:11px;}
+thead th:last-child{border-top-right-radius:11px;}
+thead th:hover{background:#1c2c38;}
+thead th .ar{opacity:.45;font-size:9px;margin-left:3px;}
+tbody td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap;}
+tbody td:first-child{text-align:left;font-weight:620;cursor:pointer;}
+tbody td:first-child:hover{color:var(--accent);text-decoration:underline;}
+tbody tr:hover{background:var(--panel2);}
+tbody tr.secrow td{background:#EEF3F5;font-weight:650;color:var(--ink);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--line2);padding:9px 11px;}
+.cell{border-radius:5px;padding:2px 7px;font-family:var(--mono);font-variant-numeric:tabular-nums;display:inline-block;min-width:46px;}
+.muted-c{color:var(--muted);}
+#cov-tbl td.pair{text-align:left;white-space:normal;min-width:340px;}
+#cov-tbl th.pair{text-align:left;}
+#cov-tbl select.peer{font-size:12px;padding:5px 24px 5px 9px;margin-right:9px;max-width:140px;vertical-align:middle;}
+#cov-tbl .ps{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:11.5px;color:var(--muted);cursor:pointer;}
+#cov-tbl .ps:hover{color:var(--accent);text-decoration:underline;}
+#cov-tbl .ps b{color:var(--ink2);}
+#con-tbl td.pcell{cursor:pointer;}
+.conchev{display:inline-block;width:11px;color:var(--faint);font-size:9px;margin-right:6px;}
+#con-tbl tr.condetail>td{background:var(--panel2);padding:0;}
+#con-tbl tr.condetail:hover>td{background:var(--panel2);}
+.qdetwrap{padding:12px 16px 16px;}
+.qdethead{font-size:12px;color:var(--ink2);font-weight:600;margin-bottom:9px;}
+.qdethead .qchart{font-weight:500;color:var(--accent);cursor:pointer;margin-left:10px;font-size:11px;}
+.qdethead .qchart:hover{text-decoration:underline;}
+table.qdet{width:100%;max-width:580px;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;}
+table.qdet th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);padding:4px 10px;border-bottom:1px solid var(--line);background:transparent;cursor:default;position:static;}
+table.qdet th.num,table.qdet td.num{text-align:right;}
+table.qdet td{padding:4px 10px;border-bottom:1px solid var(--line);color:var(--ink2);}
+table.qdet tbody tr:last-child td{border-bottom:0;}
+table.qdet tbody tr:hover td{background:transparent;}
+
+.mtxhead{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:16px 18px 0;}
+.seg{display:inline-flex;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:3px;}
+.seg button{font-family:var(--sans);font-size:11.5px;font-weight:560;color:var(--muted);background:none;border:0;padding:6px 13px;border-radius:6px;cursor:pointer;}
+.seg button[aria-selected="true"]{background:var(--ink);color:#fff;}
+.mtx-scroll{overflow:auto;padding:14px 18px 18px;}
+table.mtx{border-collapse:separate;border-spacing:0;font-size:11px;}
+table.mtx th.corner{position:sticky;left:0;top:0;z-index:6;background:var(--panel);}
+table.mtx th.col{font-family:var(--mono);font-weight:600;color:var(--ink2);font-size:10px;height:74px;vertical-align:bottom;padding-bottom:7px;white-space:nowrap;}
+table.mtx th.col div{transform:rotate(-90deg);transform-origin:center;width:18px;margin:0 auto;}
+table.mtx th.row{position:sticky;left:0;background:var(--panel);z-index:3;font-family:var(--mono);font-weight:600;font-size:10.5px;color:var(--ink2);text-align:left;padding:0 10px 0 4px;white-space:nowrap;}
+table.mtx td{width:42px;height:26px;text-align:center;font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:10px;cursor:pointer;border:1px solid rgba(255,255,255,.5);color:#1a2a35;transition:transform .08s;}
+table.mtx td:hover{outline:2px solid var(--ink);outline-offset:-2px;z-index:2;position:relative;}
+table.mtx td.diag{background:#2b3942 !important;cursor:default;}
+.mtxleg{display:flex;align-items:center;gap:10px;font-size:11px;color:var(--muted);padding:0 18px 16px;}
+.mtxleg .bar{height:9px;width:160px;border-radius:5px;}
+
+/* FLAGS */
+.fhead{display:flex;justify-content:space-between;align-items:flex-end;gap:14px;flex-wrap:wrap;padding:16px 18px;margin-top:18px;}
+.fhead .ttl{font-size:13px;font-weight:600;}
+.fhead .ttl span{color:var(--muted);font-weight:500;}
+.faxis{position:relative;height:34px;margin:6px 18px 2px;border-bottom:1px dashed var(--line2);}
+.faxis .center{position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--line2);}
+.faxis .tk{position:absolute;top:14px;transform:translateX(-50%);font-family:var(--mono);font-size:10px;color:var(--faint);}
+.faxis .end{position:absolute;top:0;font-size:10px;font-weight:600;letter-spacing:.3px;text-transform:uppercase;}
+.faxis .end.l{left:0;color:var(--cheap);} .faxis .end.r{right:0;color:var(--rich);}
+.fsector{display:grid;grid-template-columns:158px 1fr;gap:0;align-items:center;padding:3px 18px;border-top:1px solid var(--line);}
+.fsector:hover{background:var(--panel2);}
+.fgut{font-size:12px;font-weight:650;color:var(--ink);line-height:1.25;padding-right:14px;}
+.fgut small{display:block;font-family:var(--mono);font-weight:500;color:var(--muted);font-size:10px;letter-spacing:.2px;}
+.fcol{position:relative;}
+.flabels{position:relative;height:32px;}
+.flabel{position:absolute;transform:translateX(-50%);font-family:var(--mono);font-size:9.5px;font-weight:600;white-space:nowrap;background:var(--panel);padding:0 3px;border-radius:3px;cursor:pointer;bottom:1px;}
+.ftrack{position:relative;height:24px;}
+.ftrack .cl{position:absolute;left:50%;top:3px;bottom:3px;width:1px;background:var(--line2);}
+.fdot{position:absolute;top:50%;width:11px;height:11px;border-radius:50%;transform:translate(-50%,-50%);border:1.5px solid #fff;cursor:pointer;box-shadow:0 1px 2px rgba(0,0,0,.18);transition:transform .1s,box-shadow .1s;}
+.fdot:hover{transform:translate(-50%,-50%) scale(1.45);box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:5;}
+.fdiv{height:1px;background:var(--line);margin:16px 18px 0;}
+.fbh{font-size:13px;font-weight:600;padding:14px 18px 2px;}
+.fbh span{color:var(--muted);font-weight:500;}
+.fcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin-top:8px;}
+.fcard{background:var(--panel);padding:12px 16px;}
+.fcard h4{margin:0 0 9px;font-size:11px;font-weight:650;letter-spacing:.5px;text-transform:uppercase;color:var(--ink);display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+.fcard h4 small{font-family:var(--mono);font-weight:500;color:var(--muted);font-size:10px;letter-spacing:0;text-transform:none;}
+.fcard .cols{display:flex;gap:16px;}
+.fcard .bcol{flex:1;min-width:0;}
+.fcard .ch{font-size:9.5px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;margin-bottom:5px;white-space:nowrap;}
+.bcol.cheap .ch{color:var(--cheap);} .bcol.rich .ch{color:var(--rich);}
+.brow{display:flex;justify-content:space-between;gap:10px;font-size:12px;padding:2.5px 4px;cursor:pointer;border-radius:4px;}
+.brow:hover{background:var(--panel2);} .brow:hover .bt{color:var(--accent);text-decoration:underline;}
+.bt{font-weight:600;} .bv{font-family:var(--mono);font-variant-numeric:tabular-nums;}
+.bv.cheap{color:var(--cheap);} .bv.rich{color:var(--rich);}
+.prow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 4px;cursor:pointer;border-radius:4px;}
+.prow:hover{background:var(--panel2);} .prow:hover .pp{color:var(--accent);text-decoration:underline;}
+.pp{font-weight:600;font-family:var(--mono);font-size:11.5px;}
+.psub{font-size:9.5px;color:var(--muted);font-family:var(--mono);font-variant-numeric:tabular-nums;margin-top:1px;}
+.pgap{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;font-size:11px;padding:2px 7px;border-radius:5px;white-space:nowrap;flex:none;}
+.pgap.rich{color:var(--rich);background:var(--richbg);} .pgap.cheap{color:var(--cheap);background:var(--cheapbg);}
+
+
+.sumintro{font-size:12px;color:var(--muted);padding:14px 18px 4px;line-height:1.55;}
+.sumintro b{color:var(--ink2);}
+.sumsec{padding:13px 18px;border-top:1px solid var(--line);}
+.sumhead{font-size:13px;font-weight:700;letter-spacing:.2px;color:var(--ink);margin-bottom:7px;}
+.sumhead span{font-family:var(--mono);font-weight:500;font-size:11px;color:var(--muted);letter-spacing:0;margin-left:8px;}
+.sumbul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;}
+.sumbul li{font-size:12.5px;line-height:1.6;color:var(--ink2);padding-left:16px;position:relative;}
+.sumbul li:before{content:"";position:absolute;left:3px;top:9px;width:5px;height:5px;border-radius:50%;background:var(--accent);}
+.sumbul li b{color:var(--ink);font-weight:650;font-size:10px;letter-spacing:.5px;text-transform:uppercase;margin-right:5px;}
+.tk{font-family:var(--mono);font-weight:600;color:var(--ink);cursor:pointer;border-bottom:1px dotted var(--line2);white-space:nowrap;}
+.tk:hover{color:var(--accent);border-bottom-color:var(--accent);}
+.sumbul .pos,.sumbul .neg{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600;}
+
+.btintro{font-size:12px;color:var(--muted);padding:12px 0 2px;line-height:1.55;}
+.btintro b{color:var(--ink2);font-weight:600;}
+.btctl{display:flex;gap:26px;align-items:flex-end;flex-wrap:wrap;margin:10px 0 4px;}
+.btslide{display:flex;align-items:center;gap:10px;}
+.btslide input[type=range]{width:170px;accent-color:var(--accent);cursor:pointer;}
+.btslide span{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--ink2);min-width:34px;}
+.stats.bt4{grid-template-columns:repeat(4,1fr);}
+.bt-up{color:var(--cheap);} .bt-down{color:var(--rich);}
+.btchartwrap{position:relative;height:300px;margin:8px 0 2px;}
+.btscroll{max-height:430px;overflow:auto;border:1px solid var(--line);border-radius:10px;}
+table.bt-ic{width:auto;}
+table.bt-ic th,table.bt-ic td{padding:7px 16px 7px 0;text-align:right;font-variant-numeric:tabular-nums;}
+table.bt-ic th{font-size:10px;font-weight:650;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line2);}
+table.bt-ic td{font-family:var(--mono);font-size:12px;border-bottom:1px solid var(--line);}
+#bt-pairtbl{font-size:12px;}
+#bt-pairtbl th{position:sticky;top:0;background:var(--panel);cursor:pointer;font-size:10px;font-weight:650;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);padding:9px 12px;text-align:right;border-bottom:1px solid var(--line2);white-space:nowrap;z-index:2;}
+#bt-pairtbl th:first-child,#bt-pairtbl td:first-child{text-align:left;}
+#bt-pairtbl th.sorted{color:var(--accent);}
+#bt-pairtbl td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums;}
+#bt-pairtbl td:first-child{font-family:var(--mono);font-weight:600;color:var(--ink);}
+#bt-pairtbl td.mut{color:var(--faint);font-family:var(--mono);}
+#bt-pairtbl tbody tr{cursor:pointer;}
+#bt-pairtbl tbody tr:hover{background:var(--panel2);}
+footer{color:var(--faint);font-size:10.5px;text-align:center;padding-top:26px;line-height:1.6;}
+footer b{color:var(--muted);}
+
+@media (max-width:860px){
+  .stats{grid-template-columns:repeat(3,1fr);}
+  .chart-host{height:300px;}
+  .brand h1{font-size:15px;}
+  .fsector{grid-template-columns:120px 1fr;}
+}
+@media (max-width:560px){ .stats{grid-template-columns:repeat(2,1fr);} }
+/* consistency detail chart */
+.qdetgrid{display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap;}
+.qdetleft{flex:0 0 auto;}
+.qdetright{flex:1 1 380px;min-width:330px;max-width:600px;}
+.qchartttl{font-size:10.5px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin:2px 0 7px;}
+.qsvg{display:block;background:var(--panel2);border:1px solid var(--line);border-radius:8px;}
+.qchartleg{display:flex;flex-wrap:wrap;gap:13px;font-size:10.5px;color:var(--muted);margin-top:9px;align-items:center;}
+.qchartleg span{display:inline-flex;align-items:center;gap:5px;}
+.qchartleg i{display:inline-block;flex:none;}
+.qchartleg .dotg,.qchartleg .dotr{width:8px;height:8px;border-radius:50%;}
+.qchartleg .dotg{background:#2E7D52;} .qchartleg .dotr{background:#C0392B;}
+.qchartleg .bandA{width:14px;height:9px;border-radius:2px;background:rgba(21,105,122,.22);}
+.qchartleg .bandB{width:14px;height:9px;border-radius:2px;background:rgba(226,115,58,.26);}
+.qchartcap{font-size:10px;color:var(--faint);margin-top:8px;line-height:1.55;max-width:560px;}
+.qnochart{font-size:12px;color:var(--faint);padding:24px 6px;}
+/* grid tab */
+#grid-wrap{display:grid;grid-template-columns:repeat(auto-fill,minmax(265px,1fr));gap:14px;margin-top:16px;}
+.gcard{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px 9px;cursor:pointer;transition:.12s;}
+.gcard:hover{border-color:var(--line2);box-shadow:0 3px 12px rgba(15,26,36,.07);transform:translateY(-1px);}
+.gcard-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;}
+.gcard-ttl{font-size:12px;font-weight:600;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.gcard-cur{font-family:var(--mono);font-size:13px;font-weight:700;flex:none;}
+.gspark{display:block;width:100%;height:62px;}
+.gcard-foot{display:flex;justify-content:space-between;font-size:9.5px;color:var(--faint);font-family:var(--mono);margin-top:4px;}
+.gspark-empty,.gnone{font-size:11px;color:var(--faint);padding:12px 4px;}
+.gcard.ghero{grid-column:1/-1;border:1px solid var(--accent);box-shadow:0 2px 12px rgba(14,124,139,.10);background:var(--panel);}
+.gcard.ghero .gcard-ttl{font-size:13px;font-weight:700;color:var(--ink);white-space:normal;}
+.gcard.ghero .gspark{height:94px;}
+#np-chart{height:100%;}
+.np-read{position:absolute;top:10px;left:14px;font:600 12px var(--mono);color:var(--ink2);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:3px 8px;display:none;pointer-events:none;z-index:2;}
+.legend .bandsw{display:inline-block;width:13px;height:9px;border-radius:2px;border:0;background:rgba(21,105,122,.16);vertical-align:middle;}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <div class="tick"></div>
+      <div>
+        <div class="eyebrow">Relative Value</div>
+        <h1>Diversified Financials — Forward P/E</h1>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      <div class="meta">NTM fwd P/E · Bloomberg<br>As of <b id="asof"></b> · <b id="ncount"></b> names</div>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" data-tab="pairs">Pairs</button>
+        <button role="tab" aria-selected="false" data-tab="namepe">Name P/E</button>
+        <button role="tab" aria-selected="false" data-tab="software">Software</button>
+        <button role="tab" aria-selected="false" data-tab="flags">Flags</button>
+        <button role="tab" aria-selected="false" data-tab="summary">Summary</button>
+        <button role="tab" aria-selected="false" data-tab="screen">Screen</button>
+        <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
+        <button role="tab" aria-selected="false" data-tab="grid">Grid</button>
+        <button role="tab" aria-selected="false" data-tab="coverage">Coverage</button>
+        <button role="tab" aria-selected="false" data-tab="consistency">Consistency</button>
+        <button role="tab" aria-selected="false" data-tab="backtest">Backtest</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ===== PAIRS ===== -->
+  <section class="view active" id="view-pairs" role="tabpanel">
+    <div class="panel pcontrols">
+      <div class="pside a">
+        <div class="sh">Name <b>A</b> · numerator</div>
+        <div class="row"><select id="p-a-sector" aria-label="Sector for A"></select><select id="p-a" aria-label="Ticker A"></select></div>
+      </div>
+      <div class="swapwrap"><button class="swap" id="p-swap" title="Swap A and B">⇄</button></div>
+      <div class="pside b">
+        <div class="sh">Name <b>B</b> · denominator</div>
+        <div class="row"><select id="p-b-sector" aria-label="Sector for B"></select><select id="p-b" aria-label="Ticker B"></select></div>
+      </div>
+    </div>
+
+    <div class="stats" id="p-stats"></div>
+
+    <div class="panel chartcard">
+      <div class="chart-top">
+        <div class="chart-title" id="c-title"></div>
+        <div class="legend">
+          <span><i style="border-top-color:var(--series)"></i>Premium A ÷ B − 1</span>
+          <span><i style="border-top-color:var(--avg)"></i>Average (window)</span>
+        </div>
+      </div>
+      <div class="chart-host">
+        <canvas id="chart"></canvas>
+        <div class="tip" id="tip"></div>
+      </div>
+      <div class="measure" id="p-measure"></div>
+      <div class="chart-foot">
+        <div class="ranges" id="p-range">
+          <button data-m="12">1Y</button>
+          <button data-m="36" aria-selected="true">3Y</button>
+          <button data-m="60">5Y</button>
+          <button data-m="0">Max</button>
+        </div>
+        <div class="gauge">
+          <div class="glab"><span>Cheaper than usual</span><span>Where it sits vs window range</span><span>Richer than usual</span></div>
+          <div class="gtrack" id="g-track">
+            <div class="gmark gavg" id="g-avg" title="Window average"></div>
+            <div class="gmark gcur" id="g-cur" title="Current"></div>
+          </div>
+          <div class="gends"><span class="num" id="g-min"></span><span style="color:var(--avg);font-weight:600">▲ avg</span><span class="num" id="g-max"></span></div>
+        </div>
+      </div>
+      <div class="note" id="p-note"></div>
+    </div>
+  </section>
+
+  <!-- ===== FLAGS ===== -->
+  <section class="view" id="view-namepe" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Sector</label><select id="np-sector"></select></div>
+      <div class="ctl"><label>Name</label><select id="np-name"></select></div>
+      <div class="ctl"><label>History</label><div class="ranges" id="np-range">
+        <button data-m="12">1Y</button><button data-m="36">3Y</button><button data-m="60">5Y</button><button data-m="0" aria-selected="true">Max</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Forward P/E with full-history average and &plusmn;1&sigma;</div>
+    </div>
+    <div class="stats" id="np-stats"></div>
+    <div class="panel chartcard">
+      <div class="chart-top">
+        <div class="chart-title" id="np-title"></div>
+        <div class="legend">
+          <span><i style="border-top-color:var(--series)"></i>Forward P/E</span>
+          <span><i style="border-top-color:var(--avg)"></i>Average</span>
+          <span><i class="bandsw"></i>&plusmn;1&sigma; band</span>
+        </div>
+      </div>
+      <div class="chart-host" id="np-host"><div id="np-chart"></div><div class="np-read" id="np-read"></div></div>
+    </div>
+    <div class="note" id="np-note" style="border:0;padding-top:12px;"></div>
+  </section>
+
+  <!-- ============ SOFTWARE (reference) ============ -->
+  <section class="view" id="view-software" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Focus</label><select id="sw-a"></select></div>
+      <div class="ctl"><label>Compare to</label><select id="sw-b"></select></div>
+      <div class="ctl"><label>History</label><div class="ranges" id="sw-range">
+        <button data-m="12">1Y</button><button data-m="36">3Y</button><button data-m="60">5Y</button><button data-m="0" aria-selected="true">Max</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Forward P/E reference for JKHY &mdash; choose the focus and a comparator (software average/median or any single name). Not tracked in pairs, screens or the backtest.</div>
+    </div>
+    <div class="stats" id="sw-stats"></div>
+    <div class="panel chartcard">
+      <div class="chart-top">
+        <div class="chart-title" id="sw-title">Forward P/E</div>
+        <div class="legend" id="sw-legend"></div>
+      </div>
+      <div id="sw-chart"></div>
+    </div>
+    <div class="tblwrap"><table id="sw-table"><thead></thead><tbody></tbody></table></div>
+    <div class="note" id="sw-note" style="border:0;padding-top:12px;"></div>
+  </section>
+
+  <section class="view" id="view-flags" role="tabpanel">
+    <div class="panel" style="margin-top:18px;">
+      <div class="fhead">
+        <div class="ttl">Most extreme valuations by sub-sector <span id="f-sub"></span></div>
+        <div class="seg" id="f-mode">
+          <button data-mode="vc" aria-selected="true">vs sector · now</button>
+          <button data-mode="gap">Re-rate vs history</button>
+          <button data-mode="z">vs own 5-yr</button>
+        </div>
+      </div>
+      <div class="faxis" id="f-axis"></div>
+      <div id="f-body"></div>
+      <div class="fdiv"></div>
+      <div class="fbh">Flags by sub-sector <span id="f-bsub"></span></div>
+      <div class="fcards" id="f-cards"></div>
+      <div class="fdiv"></div>
+      <div class="fbh">Most dislocated pairs vs history <span>— curated peer pairs only, ranked by σ: how far today’s relative multiple sits from its 5-yr average (≥1y shared history)</span></div>
+      <div class="fcards" id="f-pairs"></div>
+      <div class="note" id="f-note"></div>
+    </div>
+  </section>
+
+  <!-- ===== SUMMARY ===== -->
+  <section class="view" id="view-summary" role="tabpanel">
+    <div class="panel" style="margin-top:18px;">
+      <div class="fhead"><div class="ttl">Anomaly brief <span>— plain-text read across coverage: valuation vs sector, vs own history, and curated pair dislocations</span></div></div>
+      <div class="sumintro" id="sum-intro"></div>
+      <div id="sum-body"></div>
+      <div class="note">Each sub-sector summarises today’s standouts. <b>vs sector</b> = premium / discount to the sub-sector median. <b>vs own history</b> = level in the name’s own 5-yr range (σ and percentile) plus its re-rating vs its normal premium to peers. <b>pairs</b> = curated peer pairs furthest from their 5-yr norm (σ). Click any name or pair to chart it.</div>
+    </div>
+  </section>
+
+  <!-- ===== SCREEN ===== -->
+  <section class="view" id="view-screen" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Sector</label><select id="s-sector"></select></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Click a ticker to chart it · click a column to sort</div>
+    </div>
+    <div class="panel tblwrap" style="margin-top:14px;padding:0 0 4px;">
+      <table id="s-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note" style="border:0;padding-top:12px;">
+      <b>%ile / Z</b> are current vs the name's own 5-yr history (low = cheap). <b>vs Sector</b> compares each name's P/E to the sector median — current and on 5-yr averages.
+      <b>Re-rate gap</b> = current premium to sector less its historical premium; negative (green) = de-rated vs peers relative to normal.
+    </div>
+  </section>
+
+  <!-- ===== MATRIX ===== -->
+  <section class="view" id="view-matrix" role="tabpanel">
+    <div class="panel" style="margin-top:18px;">
+      <div class="mtxhead">
+        <div class="ctl"><label>Sector</label><select id="m-sector"></select></div>
+        <div class="seg" id="m-mode">
+          <button data-mode="curr" aria-selected="true">Current premium</button>
+          <button data-mode="anom">Anomaly vs history</button>
+        </div>
+      </div>
+      <div class="mtxleg" id="m-leg"></div>
+      <div class="mtx-scroll"><table class="mtx" id="m-table"></table></div>
+      <div class="note">Each cell = <b>row ÷ column − 1</b>. <b>Current premium</b>: today's relative multiple (blue = row cheaper, red = row richer). <b>Anomaly vs history</b>: today's spread minus its full-history average (green = row unusually cheap vs column, red = unusually rich). Click any cell to chart that pair.</div>
+    </div>
+  </section>
+
+  <!-- ===== BACKTEST ===== -->
+  <!-- ===== COVERAGE ===== -->
+  <section class="view" id="view-grid" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Sub-sector</label><select id="grid-sec"></select></div>
+      <div class="swapwrap" style="padding-bottom:6px;"><button class="swap" id="grid-swap" title="Swap the two sub-sectors">⇄</button></div>
+      <div class="ctl"><label>Compare to</label><select id="grid-cmp"></select></div>
+      <div class="ctl"><label>Each card</label><div class="ranges" id="grid-mode">
+        <button data-mode="med" aria-selected="true">vs peer median</button><button data-mode="avg">vs peer average</button><button data-mode="pairs">curated pairs</button></div></div>
+      <div class="ctl"><label>History</label><div class="ranges" id="grid-range">
+        <button data-m="12">1Y</button><button data-m="36" aria-selected="true">3Y</button><button data-m="60">5Y</button><button data-m="0">Max</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;"><b id="grid-count"></b> &middot; cheapest first &middot; click a card to open it in Pairs</div>
+    </div>
+    <div id="grid-wrap"></div>
+    <div class="note" style="border:0;padding-top:14px;">
+      Each card is a relative forward-P/E line for the chosen sub-sector. In <b>vs peer median / average</b> mode every card is one name versus the equal-weighted median (or mean) of its sub-sector peers, <b>excluding that name itself</b>; the dot is the latest reading and the dashed line is the normal (0%) level. In <b>curated pairs</b> mode the cards are the tradeable intra-sub-sector pairs. Set <b>Compare to</b> a different sub-sector to compare across groups: each card then shows a name versus that sub-sector’s median/average, and the highlighted card on top is the two groups’ aggregate multiples against each other (e.g. Exchanges median ÷ Info Services median). A green dot below 0 = cheap versus the group; a red dot above 0 = rich. Cards are sorted cheapest-first. Click any card to open the full chart, stats and history window in the Pairs tab.
+    </div>
+  </section>
+
+  <section class="view" id="view-coverage" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Sector benchmark</label><div class="ranges" id="cov-agg"><button data-a="mean" aria-selected="true">Average</button><button data-a="median">Median</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Click a ticker to chart it &middot; pick a name in the last column to set a custom pair</div>
+    </div>
+    <div class="panel tblwrap" style="margin-top:14px;padding:0 0 4px;">
+      <table id="cov-tbl"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note" style="border:0;padding-top:12px;">
+      <b>Current P/E</b> is NTM forward. <b>vs sector (now)</b> compares each name to its sub-sector <span id="cov-aggw">average</span> today; <b>vs sector (hist)</b> compares the name's 5-yr-average P/E to the sub-sector's 5-yr-average (its structural premium / discount); <b>vs own history</b> is the current P/E against the name's own 5-yr average. Green = cheap, red = rich. In the <b>Custom pair</b> column, choose any name (grouped by sub-sector) to see the current premium, the 5-yr-average premium, and how stretched today's spread is in standard deviations; click the result to open the full pair chart.
+    </div>
+  </section>
+
+  <!-- ===== CONSISTENCY ===== -->
+  <section class="view" id="view-consistency" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>Min quarters</label><div class="btslide"><input type="range" id="con-minq" min="6" max="14" step="1" value="10"><span id="con-minq-v">10 q</span></div></div>
+      <div class="ctl"><label>Sub-sector</label><select id="con-sec"></select></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;"><b id="con-count"></b> &middot; click a pair to chart it &middot; click a column to sort</div>
+    </div>
+    <div class="panel tblwrap" style="margin-top:14px;padding:0 0 4px;">
+      <table id="con-tbl"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note" style="border:0;padding-top:12px;">
+      This ranks each pair as a <b>quarterly mean-reversion trade that switches sides each quarter</b>: it goes long whichever name is cheap versus the two stocks' own historical P/E relationship and shorts the other &mdash; so it is <i>not</i> a fixed long/short of one name. <b>Disc/prem now</b> is how far the first name's P/E sits versus the second relative to their historical average (negative = first name unusually cheap, the side the trade goes long; positive = unusually rich, so it goes long the second). <b>Hit rate (Q)</b> is the share of quarters the trade made money, <b>Avg / Q</b> the mean quarterly long-short return, <b>Cumulative</b> the compounded result, and <b>IC (Q)</b> the rank correlation between the size of the gap and the next quarter's reversion. Click any pair to expand its quarter-by-quarter record. Green = cheap / made money.
+      <br><br><b>Read with care:</b> the valuation signal needs an 18-month P/E baseline and the uploaded P/E history starts mid-2021, so hit rates rest on only ~14 quarters (end-2022 to mid-2026) &mdash; a single regime, and a 70% hit over 13 quarters still carries a wide confidence band. Figures are in-sample, gross of costs, and assume FX-hedged cross-currency legs. Read this as "which pairs reverted reliably in this window," not a forward guarantee.
+    </div>
+  </section>
+
+  <section class="view" id="view-backtest" role="tabpanel">
+    <div class="panel" style="margin-top:18px;">
+      <div class="fhead"><div class="ttl">Does the signal predict returns? <span>\u2014 mean-reversion backtest of relative-value signals against forward share-price performance</span></div></div>
+      <div class="btintro" id="bt-intro"></div>
+      <div class="btctl">
+        <div class="ctl"><label>Forward horizon</label><div class="ranges" id="bt-h">
+          <button data-h="1">1M</button><button data-h="3">3M</button><button data-h="6" aria-selected="true">6M</button><button data-h="12">12M</button></div></div>
+        <div class="ctl"><label>Entry threshold |z|</label><div class="btslide"><input type="range" id="bt-thr" min="0.5" max="2" step="0.1" value="1.0"><span id="bt-thr-v">1.0\u03c3</span></div></div>
+        <div class="ctl"><label>Trend filter</label><div class="ranges" id="bt-filt"><button data-f="all" aria-selected="true">All</button><button data-f="tc">Trend-confirmed</button><button data-f="rb">Range-bound</button></div></div>
+      </div>
+      <div class="stats bt4" id="bt-cards"></div>
+      <div class="chart-title">Forward <span id="bt-h-lab">6-month</span> long / short return by valuation z-decile <span>\u00b7 cheap leg at deepest discount in teal</span></div>
+      <div class="btchartwrap"><canvas id="bt-decile"></canvas></div>
+      <div class="note" id="bt-note"></div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <div class="fhead"><div class="ttl">Information coefficient <span>\u2014 rank correlation of signal vs forward return, averaged across months</span></div></div>
+      <div id="bt-ic"></div>
+      <div class="note">IC peaks at the 3-month horizon and decays toward zero by 6\u201312 months; the cross-sectional signal is weak on its own (it is the extreme-discount tail, shown above, that carries the return). Single-name "cheap vs own history" turns negative by 12 months \u2014 a value-trap signature.</div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <div class="fhead"><div class="ttl">Per-pair predictive power <span>\u2014 click any pair to chart its z-history</span></div></div>
+      <div class="btscroll"><table id="bt-pairtbl"><thead></thead><tbody></tbody></table></div>
+      <div class="note"><b>IC</b> = Spearman(signal, forward LS) at the selected horizon (\u226512 obs). <b>Trade ret</b> = average return from trading the pair in the mean-reversion direction (long the cheap leg) whenever |z| exceeds the threshold. Positive = mean-reverts; negative = trends / value-trap (the cheap leg kept getting cheaper). With ~100 pairs tested, individual rows are noisy \u2014 trust the aggregate.</div>
+    </div>
+    <div class="panel" style="margin-top:16px;">
+      <div class="fhead"><div class="ttl">Strategy P&amp;L net of costs <span>&mdash; dollar-neutral z-weighted pair book, monthly rebalance</span></div></div>
+      <div class="btctl">
+        <div class="ctl"><label>Transaction cost (bps, one-way)</label><div class="btslide"><input type="range" id="bt-cost" min="0" max="30" step="1" value="10"><span id="bt-cost-v">10 bps</span></div></div>
+        <div class="ctl"><label>Borrow (bps p.a.)</label><div class="btslide"><input type="range" id="bt-borrow" min="0" max="200" step="10" value="50"><span id="bt-borrow-v">50 bps</span></div></div>
+      </div>
+      <div class="stats bt4" id="bt-pnl-cards"></div>
+      <div class="chart-title">Cumulative long / short return <span>&middot; gross (teal) vs net of costs (orange)</span></div>
+      <div class="btchartwrap"><canvas id="bt-equity"></canvas></div>
+      <div class="note" id="bt-pnl-note"></div>
+    </div>
+  </section>
+
+  <footer>
+    Forward P/E (NTM) sourced from Bloomberg, hardcoded 5-yr daily history. Calendar-day series; weekends carry the prior value.
+    Two coverage names carried no P/E in the source pull and are omitted: <b id="excl"></b>. Snapshot as of <b id="asof2"></b>.
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const BT = __BTDATA__;
+const QD = __QDATA__;
+const DPXMETA = __DPX__;
+const DPX = DPXMETA.px;
+const SW = __SWDATA__;
+const D = DATA.dates, PE = DATA.pe, SEC = DATA.sectors, SECOF = DATA.sector_of;
+const N = D.length;
+const ALL_TICKERS = Object.keys(PE).sort();
+const fmtMonD = (s)=>{const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});};
+const fmtFull = (s)=>{const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});};
+const sgn = (x,dp=1)=>(x>=0?'+':'−')+Math.abs(x*100).toFixed(dp)+'%';
+const px = (x)=>x.toFixed(1)+'x';
+
+document.getElementById('asof').textContent=fmtFull(DATA.asof);
+document.getElementById('asof2').textContent=fmtFull(DATA.asof);
+document.getElementById('ncount').textContent=ALL_TICKERS.length;
+document.getElementById('excl').textContent=DATA.excluded.join(', ')||'none';
+
+// ---------- helpers ----------
+function lastVal(t){const a=PE[t];for(let i=a.length-1;i>=0;i--)if(a[i]!=null)return a[i];return null;}
+function pairSeries(a,b){const A=PE[a],B=PE[b],idx=[],val=[];for(let i=0;i<N;i++){if(A[i]!=null&&B[i]!=null){idx.push(i);val.push(A[i]/B[i]-1);}}return{idx,val};}
+// sub-sector aggregate legs: sentinel "~avg~<sector>" / "~med~<sector>" usable as either leg
+function isAgg(leg){return !!leg&&leg[0]==='~';}
+function legSeries(leg,excl){
+  if(isAgg(leg)){const med=leg.slice(1,4)==='med';const sec=leg.slice(5);const names=namesIn(sec).filter(t=>PE[t]&&t!==excl);const out=new Array(N).fill(null);for(let i=0;i<N;i++){const vv=[];for(let j=0;j<names.length;j++){const v=PE[names[j]][i];if(v!=null)vv.push(v);}if(!vv.length)continue;if(med){vv.sort((x,y)=>x-y);const m=vv.length;out[i]=m%2?vv[(m-1)/2]:(vv[m/2-1]+vv[m/2])/2;}else{let s=0;for(let k=0;k<vv.length;k++)s+=vv[k];out[i]=s/vv.length;}}return out;}
+  return PE[leg];
+}
+function pairSeriesG(a,b){const A=legSeries(a,isAgg(b)?null:b),B=legSeries(b,isAgg(a)?null:a),idx=[],val=[];if(!A||!B)return{idx,val};for(let i=0;i<N;i++){if(A[i]!=null&&B[i]!=null){idx.push(i);val.push(A[i]/B[i]-1);}}return{idx,val};}
+function legLabel(leg){if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'?' median':' avg');return leg;}
+function legSecOf(leg){return isAgg(leg)?leg.slice(5):SECOF[leg];}
+function sliceMonths(ps,m){if(!m||ps.idx.length===0)return ps;const lastDate=new Date(D[ps.idx[ps.idx.length-1]]+'T00:00:00');const cut=new Date(lastDate);cut.setMonth(cut.getMonth()-m);const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){if(new Date(D[ps.idx[k]]+'T00:00:00')>=cut){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
+function stat(v){if(v.length===0)return null;const n=v.length;const mean=v.reduce((s,x)=>s+x,0)/n;const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));const cur=v[n-1];const below=v.filter(x=>x<cur).length;return{mean,sd,cur,n,min:Math.min(...v),max:Math.max(...v),pile:below/n*100,z:sd?(cur-mean)/sd:0};}
+function nameStats(t){const a=PE[t];const vals=[],idx=[];for(let i=0;i<N;i++)if(a[i]!=null){vals.push(a[i]);idx.push(i);}if(!vals.length)return null;const cur=vals[vals.length-1];const lastD=new Date(D[idx[idx.length-1]]+'T00:00:00');const after=(m)=>{const c=new Date(lastD);c.setMonth(c.getMonth()-m);let s=0,k=0;for(let j=0;j<idx.length;j++){if(new Date(D[idx[j]]+'T00:00:00')>=c){s+=vals[j];k++;}}return k?s/k:null;};const mean=vals.reduce((s,x)=>s+x,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,x)=>s+(x-mean)**2,0)/(vals.length>1?vals.length-1:1));const below=vals.filter(x=>x<cur).length;return{cur,a1:after(12),a3:after(36),a5:mean,pile:below/vals.length*100,z:sd?(cur-mean)/sd:0};}
+function median(arr){const a=arr.filter(x=>x!=null).slice().sort((p,q)=>p-q);const n=a.length;if(!n)return null;return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2;}
+function legRoot(t){return String(t).replace(/ (US|LN|GY|FP|NA|SS|SW|IM)$/,"");}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function lerp(a,b,t){return a+(b-a)*t;}
+function mix(c1,c2,t){return`rgb(${Math.round(lerp(c1[0],c2[0],t))},${Math.round(lerp(c1[1],c2[1],t))},${Math.round(lerp(c1[2],c2[2],t))})`;}
+function scaleBG(x,lo,mid,hi,cLo,cMid,cHi){if(x<=mid){const t=Math.max(0,Math.min(1,(mid-x)/(mid-lo)));return mix(cMid,cLo,t);}const t=Math.max(0,Math.min(1,(x-mid)/(hi-mid)));return mix(cMid,cHi,t);}
+const GREEN=[46,125,82],RED=[192,57,43],WHITE=[255,255,255],BLUE=[91,155,213],GRAY=[150,164,174];
+// sector metrics (vs-sector, re-rate gap, own-history z) computed once per sector
+function sectorMetrics(sec){
+  const names=(sec==='All coverage')?ALL_TICKERS:SEC[sec];
+  const rows=names.map(t=>({t,...nameStats(t)})).filter(r=>r&&r.cur!=null);
+  const medCur=median(rows.map(r=>r.cur)),medA5=median(rows.map(r=>r.a5));
+  rows.forEach(r=>{r.vc=r.cur/medCur-1;r.vh=r.a5/medA5-1;r.gap=r.vc-r.vh;});
+  return {rows,medCur,medA5};
+}
+
+// ---------- state ----------
+const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pairs',
+          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
+
+function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
+function sectorList(){return Object.keys(SEC);}
+function namesIn(sec){return sec==='All coverage'?ALL_TICKERS:SEC[sec];}
+
+const aSecSel=document.getElementById('p-a-sector'),pA=document.getElementById('p-a'),
+      bSecSel=document.getElementById('p-b-sector'),pB=document.getElementById('p-b');
+function initPairControls(){
+  fillSel(aSecSel,['All coverage',...sectorList()],ST.aSec);
+  fillSel(bSecSel,['All coverage',...sectorList()],ST.bSec);
+  refreshPairNames();
+}
+function fillSelV(sel,items,val){sel.innerHTML='';items.forEach(it=>{const o=document.createElement('option');o.value=it.v;o.textContent=it.t;if(it.v===val)o.selected=true;sel.appendChild(o);});}
+function legOptions(sec){return [{v:'~avg~'+sec,t:sec+' \u2014 average'},{v:'~med~'+sec,t:sec+' \u2014 median'}].concat(namesIn(sec).map(t=>({v:t,t:t})));}
+function remapAgg(leg,sec){return isAgg(leg)?leg.slice(0,5)+sec:leg;}
+function refreshPairNames(){
+  ST.A=remapAgg(ST.A,ST.aSec); ST.B=remapAgg(ST.B,ST.bSec);
+  const ao=legOptions(ST.aSec); if(!ao.some(x=>x.v===ST.A))ST.A=namesIn(ST.aSec)[0]; fillSelV(pA,ao,ST.A);
+  const bo=legOptions(ST.bSec); if(!bo.some(x=>x.v===ST.B))ST.B=namesIn(ST.bSec)[0]; fillSelV(pB,bo,ST.B);
+}
+
+// ---------- PAIRS ----------
+const cv=document.getElementById('chart'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
+let CHART={};
+function renderPairs(){
+  const full=pairSeriesG(ST.A,ST.B);
+  const ps=sliceMonths(full,ST.m);
+  const s=stat(ps.val);
+  const _mk=ST.A+'|'+ST.B+'|'+ST.m; if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
+  const sameSec=legSecOf(ST.A)===legSecOf(ST.B);
+  document.getElementById('c-title').innerHTML=`${legLabel(ST.A)} <span>÷</span> ${legLabel(ST.B)} <span>— premium / discount${sameSec?'':' · cross-sector'}</span>`;
+  const cards=[
+    {k:'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
+    {k:'Average · window',v:s?sgn(s.mean):'—'},
+    {k:'Current vs avg',v:s?sgn(s.cur-s.mean):'—',cls:s?((s.cur-s.mean)>=0?'pos':'neg'):''},
+    {k:'Percentile',v:s?`${s.pile.toFixed(0)}<small>th</small>`:'—'},
+    {k:'Z-score',v:s?(s.z>=0?'+':'−')+Math.abs(s.z).toFixed(2):'—',cls:s?(s.z>=0?'pos':'neg'):''},
+    {k:'Range',v:s?`<small>${sgn(s.min,0)} · ${sgn(s.max,0)}</small>`:'—'},
+  ];
+  document.getElementById('p-stats').innerHTML=cards.map(c=>`<div class="stat"><div class="k">${c.k}</div><div class="v num ${c.cls||''}">${c.v}</div></div>`).join('');
+  if(s){
+    const span=(s.max-s.min)||1,pos=x=>((x-s.min)/span*100);
+    document.getElementById('g-cur').style.left=pos(s.cur)+'%';
+    document.getElementById('g-avg').style.left=pos(s.mean)+'%';
+    document.getElementById('g-cur').style.background=(s.cur>=s.mean)?'var(--rich)':'var(--cheap)';
+    document.getElementById('g-min').textContent=sgn(s.min,0);
+    document.getElementById('g-max').textContent=sgn(s.max,0);
+    document.getElementById('p-note').innerHTML=`${legLabel(ST.A)} currently trades at <b>${sgn(s.cur)}</b> versus ${legLabel(ST.B)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} its ${ST.m?ST.m/12+'-yr':'full-history'} average of <b>${sgn(s.mean)}</b> — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
+    if(isAgg(ST.A)||isAgg(ST.B)){const aggIsB=isAgg(ST.B);const asec=aggIsB?legSecOf(ST.B):legSecOf(ST.A);const other=aggIsB?ST.A:ST.B;const excl=isAgg(other)?null:other;const cnt=namesIn(asec).filter(t=>PE[t]&&t!==excl).length;const noteEx=(excl&&SECOF[excl]===asec)?(', excluding '+excl+' itself'):'';document.getElementById('p-note').innerHTML+=` <span style="color:var(--muted)">Sub-sector leg = equal-weighted ${isAgg(ST.A)&&isAgg(ST.B)?'aggregates':'average'} across ${cnt} ${asec} names with P/E${noteEx}.</span>`;}
+  } else { document.getElementById('p-note').innerHTML='No overlapping history for this pair in the selected window.'; }
+  drawChart(ps);
+  renderMeasure();
+}
+function drawChart(ps){
+  const host=cv.parentElement,dpr=window.devicePixelRatio||1;
+  const W=host.clientWidth,H=host.clientHeight;
+  cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const v=ps.val,ix=ps.idx,n=v.length;
+  const padL=54,padR=14,padT=14,padB=30,plotW=W-padL-padR,plotH=H-padT-padB;
+  if(n<2){ctx.fillStyle='#9AA8B2';ctx.font='13px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='center';ctx.fillText('Not enough overlapping data',W/2,H/2);CHART={};return;}
+  const mean=v.reduce((s,x)=>s+x,0)/n;
+  let lo=Math.min(...v,mean),hi=Math.max(...v,mean);
+  if(lo>0)lo=Math.min(lo,0);if(hi<0)hi=Math.max(hi,0);
+  const pad=(hi-lo)*0.08||0.02;lo-=pad;hi+=pad;
+  const rng=hi-lo,rawStep=rng/5,mag=Math.pow(10,Math.floor(Math.log10(rawStep))),norm=rawStep/mag;
+  const step=(norm<1.5?1:norm<3?2:norm<7?5:10)*mag,tickLo=Math.ceil(lo/step)*step;
+  const X=i=>padL+(i/(n-1))*plotW,Y=val=>padT+(1-(val-lo)/(hi-lo))*plotH;
+  ctx.font='11px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='right';ctx.textBaseline='middle';
+  for(let t=tickLo;t<=hi+1e-9;t+=step){const y=Y(t);ctx.strokeStyle=(Math.abs(t)<1e-9)?'#C7D0D6':'#EEF2F4';ctx.lineWidth=Math.abs(t)<1e-9?1.4:1;ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();ctx.fillStyle=Math.abs(t)<1e-9?'#5B6B76':'#9AA8B2';ctx.fillText((t>=0?'':'−')+Math.abs(t*100).toFixed(0)+'%',padL-8,y);}
+  ctx.textAlign='center';ctx.textBaseline='top';ctx.fillStyle='#9AA8B2';
+  const want=Math.min(11,Math.max(4,Math.floor(plotW/95))),labelStep=Math.max(1,Math.floor(n/want));
+  for(let i=0;i<n;i+=labelStep){const x=X(i);ctx.strokeStyle='#F1F4F5';ctx.beginPath();ctx.moveTo(x,padT);ctx.lineTo(x,padT+plotH);ctx.stroke();ctx.fillText(fmtMonD(D[ix[i]]),x,padT+plotH+7);}
+  ctx.strokeStyle='#E2733A';ctx.lineWidth=1.6;ctx.beginPath();ctx.moveTo(padL,Y(mean));ctx.lineTo(W-padR,Y(mean));ctx.stroke();
+  ctx.strokeStyle='#15697A';ctx.lineWidth=1.7;ctx.lineJoin='round';ctx.beginPath();
+  for(let i=0;i<n;i++){const x=X(i),y=Y(v[i]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();
+  ctx.fillStyle='#15697A';ctx.beginPath();ctx.arc(X(n-1),Y(v[n-1]),3,0,7);ctx.fill();
+  CHART={X,Y,v,ix,n,padL,padR,padT,plotW,plotH,W,H,mean};
+  drawMeasure();
+}
+cv.addEventListener('mousemove',e=>{
+  if(!CHART.n)return;const r=cv.getBoundingClientRect(),mx=e.clientX-r.left;
+  let i=Math.round((mx-CHART.padL)/CHART.plotW*(CHART.n-1));i=Math.max(0,Math.min(CHART.n-1,i));
+  const x=CHART.X(i),y=CHART.Y(CHART.v[i]);
+  drawChart({idx:CHART.ix,val:CHART.v});
+  ctx.strokeStyle='rgba(15,26,36,.25)';ctx.lineWidth=1;ctx.setLineDash([4,3]);ctx.beginPath();ctx.moveTo(x,CHART.padT);ctx.lineTo(x,CHART.padT+CHART.plotH);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle='#fff';ctx.strokeStyle='#15697A';ctx.lineWidth=2;ctx.beginPath();ctx.arc(x,y,4.5,0,7);ctx.fill();ctx.stroke();
+  tip.style.opacity=1;tip.innerHTML=`<div class="d">${fmtFull(D[CHART.ix[i]])}</div><b>${sgn(CHART.v[i])}</b>`;
+  let tx=x+12;if(tx>CHART.W-90)tx=x-tip.offsetWidth-12;tip.style.left=tx+'px';tip.style.top=Math.max(6,y-34)+'px';
+});
+cv.addEventListener('mouseleave',()=>{tip.style.opacity=0;if(CHART.n)drawChart({idx:CHART.ix,val:CHART.v});});
+
+// ----- click-to-measure: numerator (Name A) share-price return between two dates -----
+function measAllowed(){return !isAgg(ST.A) && !!DPX[ST.A];}
+function pxAt(t,di){const a=DPX[t];return a?a[di]:null;}
+function drawMeasure(){
+  if(!CHART.n||!measAllowed())return;
+  const posOf=di=>{const p=CHART.ix.indexOf(di);return p<0?null:p;};
+  if(ST.measA!=null&&ST.measB!=null){
+    const pa=posOf(ST.measA),pb=posOf(ST.measB);
+    if(pa!=null&&pb!=null){const x1=CHART.X(Math.min(pa,pb)),x2=CHART.X(Math.max(pa,pb));
+      ctx.fillStyle='rgba(21,105,122,.07)';ctx.fillRect(x1,CHART.padT,Math.max(1,x2-x1),CHART.plotH);}
+  }
+  [ST.measA,ST.measB].forEach((di,k)=>{
+    if(di==null)return;const p=posOf(di);if(p==null)return;const x=CHART.X(p),y=CHART.Y(CHART.v[p]);
+    ctx.strokeStyle='#0F1A24';ctx.globalAlpha=.5;ctx.lineWidth=1.2;ctx.setLineDash([3,3]);
+    ctx.beginPath();ctx.moveTo(x,CHART.padT);ctx.lineTo(x,CHART.padT+CHART.plotH);ctx.stroke();
+    ctx.setLineDash([]);ctx.globalAlpha=1;
+    ctx.fillStyle='#0F1A24';ctx.beginPath();ctx.arc(x,y,4,0,7);ctx.fill();
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x,y,1.7,0,7);ctx.fill();
+    ctx.fillStyle='#0F1A24';ctx.font='600 10px '+getComputedStyle(document.body).fontFamily;
+    ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillText(k===0?'1':'2',x,CHART.padT+11);
+  });
+}
+function renderMeasure(){
+  const el=document.getElementById('p-measure');if(!el)return;
+  const fmtP=v=>v==null?'—':v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  if(!measAllowed()){el.className='measure';
+    el.innerHTML='<span class="mhint">Pick a single name as <b>Name A</b> (numerator) to measure its share-price return between two dates on the chart.</span>';return;}
+  const lbl=legLabel(ST.A);
+  if(ST.measA==null){el.className='measure';
+    el.innerHTML='<span class="mhint">Click two dates on the chart to measure <b>'+lbl+'</b>’s share-price return between them.</span>';return;}
+  if(ST.measB==null){const pa=pxAt(ST.A,ST.measA);el.className='measure armed';
+    el.innerHTML='<span class="mlead">'+lbl+'</span><span class="mdet">start '+fmtFull(D[ST.measA])+' · '+fmtP(pa)+'</span><span class="mhint">— click the end date</span><span class="mclear" onclick="clearMeas()">clear</span>';return;}
+  let s=ST.measA,e=ST.measB;if(s>e){const tmp=s;s=e;e=tmp;}
+  const psv=pxAt(ST.A,s),pev=pxAt(ST.A,e);el.className='measure';
+  if(psv==null||pev==null){el.innerHTML='<span class="mlead">'+lbl+'</span><span class="mhint">No price on one of the selected dates.</span><span class="mclear" onclick="clearMeas()">clear</span>';return;}
+  const ret=pev/psv-1,days=Math.round((new Date(D[e])-new Date(D[s]))/864e5);
+  const ann=days>=45?(Math.pow(pev/psv,365/days)-1):null;
+  el.innerHTML='<span class="mlead">'+lbl+' · share-price return</span>'+
+    '<span class="mret '+(ret>=0?'up':'dn')+'">'+(ret>=0?'+':'−')+(Math.abs(ret)*100).toFixed(1)+'%</span>'+
+    '<span class="mdet">'+fmtFull(D[s])+' '+fmtP(psv)+' &rarr; '+fmtFull(D[e])+' '+fmtP(pev)+'</span>'+
+    '<span class="mdet">· '+days+'d'+(ann!=null?' · '+(ann>=0?'+':'−')+(Math.abs(ann)*100).toFixed(1)+'% ann':'')+'</span>'+
+    '<span class="mdet" style="color:var(--faint)">· total-return basis</span>'+
+    '<span class="mclear" onclick="clearMeas()">clear</span>';
+}
+function clearMeas(){ST.measA=null;ST.measB=null;renderMeasure();if(CHART.n)drawChart({idx:CHART.ix,val:CHART.v});}
+cv.addEventListener('click',e=>{
+  if(!CHART.n||!measAllowed())return;
+  const r=cv.getBoundingClientRect(),mx=e.clientX-r.left;
+  let i=Math.round((mx-CHART.padL)/CHART.plotW*(CHART.n-1));i=Math.max(0,Math.min(CHART.n-1,i));
+  const di=CHART.ix[i];
+  if(ST.measA==null||ST.measB!=null){ST.measA=di;ST.measB=null;}else{ST.measB=di;}
+  renderMeasure();drawChart({idx:CHART.ix,val:CHART.v});
+});
+
+// ---------- FLAGS ----------
+const FMETA={
+  vc :{dom:0.8,fmt:v=>sgn(v,0),l:'Discount to sector',r:'Premium to sector',ticks:[-0.8,-0.4,0,0.4,0.8],tf:v=>sgn(v,0)},
+  gap:{dom:0.5,fmt:v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(0)+'pp',l:'De-rated vs history',r:'Re-rated vs history',ticks:[-0.5,-0.25,0,0.25,0.5],tf:v=>(v>=0?'+':'−')+Math.abs(v*100).toFixed(0)},
+  z  :{dom:3,fmt:v=>(v>=0?'+':'−')+Math.abs(v).toFixed(1)+'σ',l:'Cheap vs own history',r:'Rich vs own history',ticks:[-3,-1.5,0,1.5,3],tf:v=>(v>=0?'+':'−')+Math.abs(v).toFixed(0)+'σ'},
+};
+function fpos(v,dom){const c=Math.max(-dom,Math.min(dom,v));return (c+dom)/(2*dom)*100;}
+function fdotColor(v,dom){const t=Math.max(-1,Math.min(1,v/dom));return t<0?mix(GRAY,GREEN,-t):mix(GRAY,RED,t);}
+function renderFlags(){
+  const meta=FMETA[ST.fMode],dom=meta.dom,mode=ST.fMode;
+  document.getElementById('f-sub').textContent='\u2014 '+({vc:'premium / discount to the sector median, today',gap:'change in premium to sector vs its own history',z:'where each name sits in its own 5-yr range'})[mode];
+  document.getElementById('f-bsub').textContent='\u2014 '+({vc:'cheapest & richest vs sector median',gap:'most de-rated & re-rated vs own history',z:'cheapest & richest vs own 5-yr range'})[mode];
+  const ax=document.getElementById('f-axis');
+  ax.innerHTML=`<div class="center"></div><div class="end l">\u25C0 ${meta.l}</div><div class="end r">${meta.r} \u25B6</div>`+
+    meta.ticks.map(tk=>`<div class="tk" style="left:${fpos(tk,dom)}%">${meta.tf(tk)}</div>`).join('');
+  const cheapLab={vc:'Discount to sector',gap:'De-rated vs history',z:'Cheap vs own 5-yr'}[mode];
+  const richLab ={vc:'Premium to sector',gap:'Re-rated vs history',z:'Rich vs own 5-yr'}[mode];
+  let strips='',cards='';
+  sectorList().forEach(sec=>{
+    const {rows,medCur}=sectorMetrics(sec);
+    rows.forEach(r=>r._v=r[mode]);
+    const n=rows.length;
+    const dots=rows.map(r=>`<div class="fdot" data-t="${r.t}" title="${r.t} \u00b7 ${meta.fmt(r._v)} \u00b7 ${px(r.cur)}" style="left:${fpos(r._v,dom)}%;background:${fdotColor(r._v,dom)}"></div>`).join('');
+    const sorted=rows.slice().sort((a,b)=>a._v-b._v);
+    const clampP=v=>Math.max(3,Math.min(97,fpos(v,dom)));
+    const lab=[];const lo0=sorted[0],lo1=sorted[1],hi1=sorted[n-1],hi0=sorted[n-2];
+    if(lo0)lab.push({r:lo0,lvl:0});
+    if(lo1&&lo1!==hi1&&lo1!==hi0)lab.push({r:lo1,lvl:Math.abs(clampP(lo1._v)-clampP(lo0._v))<9?1:0});
+    if(hi1&&hi1!==lo0)lab.push({r:hi1,lvl:0});
+    if(hi0&&hi0!==lo0&&hi0!==lo1&&hi0!==hi1)lab.push({r:hi0,lvl:Math.abs(clampP(hi0._v)-clampP(hi1._v))<9?1:0});
+    const labels=lab.map(({r,lvl})=>`<span class="flabel" data-t="${r.t}" style="left:${clampP(r._v)}%;bottom:${1+lvl*13}px;color:${r._v<0?'var(--cheap)':'var(--rich)'}">${r.t} ${meta.fmt(r._v)}</span>`).join('');
+    strips+=`<div class="fsector"><div class="fgut">${sec}<small>med ${px(medCur)} \u00b7 ${n}</small></div><div class="fcol"><div class="flabels">${labels}</div><div class="ftrack"><div class="cl"></div>${dots}</div></div></div>`;
+    const k=Math.min(3,Math.max(1,Math.floor(n/2)));
+    const cheap=sorted.slice(0,k), rich=sorted.slice(-k).reverse();
+    const brow=(r,side)=>`<div class="brow" data-t="${r.t}"><span class="bt">${r.t}</span><span class="bv ${side}">${meta.fmt(r._v)}</span></div>`;
+    cards+=`<div class="fcard"><h4>${sec}<small>med ${px(medCur)} \u00b7 n=${n}</small></h4><div class="cols">`+
+      `<div class="bcol cheap"><div class="ch">\u25BC ${cheapLab}</div>${cheap.map(r=>brow(r,'cheap')).join('')}</div>`+
+      `<div class="bcol rich"><div class="ch">\u25B2 ${richLab}</div>${rich.map(r=>brow(r,'rich')).join('')}</div></div></div>`;
+  });
+  document.getElementById('f-body').innerHTML=strips;
+  document.getElementById('f-cards').innerHTML=cards;
+  document.querySelectorAll('#view-flags [data-t]').forEach(el=>el.onclick=()=>loadPairFromName(el.dataset.t));
+  document.getElementById('f-note').innerHTML=({
+    vc:'Each dot is a name placed by its current P/E premium (right, red) or discount (left, green) to its sub-sector median; bullets list the cheapest and richest names in each group.',
+    gap:'Distance of a name\u2019s <b>current</b> premium-to-sector from its <b>own 5-yr average</b> premium. Re-rated (red) = richer than normal vs peers; de-rated (green) = cheaper than normal \u2014 the clearest single-name anomalies.',
+    z:'A name\u2019s current multiple in standard deviations from its <b>own</b> 5-yr mean. Green = cheap vs its history; red = rich.'
+  })[mode]+' Click any dot, label or bullet to chart it against a sector peer. Pair flags are limited to curated peer groups (matched on business model and geography) so only genuinely tradeable pairs surface.';
+}
+const CLUSTERS=[
+  ['CME US','ICE US','NDAQ US','CBOE US'],
+  ['LSEG LN','DB1 GY','ENX FP'],
+  ['TW US','MKTX US'],
+  ['SPGI US','MCO US'],
+  ['EFX US','TRU US','EXPN LN'],
+  ['MSCI US','SPGI US','FDS US'],
+  ['V US','MA US'],
+  ['FIS US','FISV US','GPN US'],
+  ['PYPL US','XYZ US','ADYEN NA'],
+  ['TOST US','FOUR US','XYZ US'],
+  ['AFRM US','KLAR US','SOFI US'],
+  ['SOFI US','CHYM US'],
+  ['CPAY US','WEX US'],
+  ['WU US','WISE LN','RELY LN'],
+  ['LAZ US','EVR US','MC US','HLI US','PWP US','PJT US','PIPR US'],
+  ['BX US','KKR US','APO US','ARES US','CG US','BAM US','TPG US','OWL US'],
+  ['EQT SS','CVC NA','ICG LN','PGHN SW'],
+  ['STEP US','HLNE US'],
+  ['BLK US','TROW US','BEN US','IVZ US','AB US'],
+  ['DWS GY','AMUN FP'],
+  ['SCHW US','LPLA US','RJF US','SF US'],
+  ['SCHW US','IBKR US','HOOD US','ETOR US'],
+  ['HOOD US','COIN US'],
+  ['COIN US','CRCL US'],
+  ['FTK GY','SQ SW','FBK IM'],
+  ['FBK IM','BGN IM'],
+].map(a=>new Set(a)); // curated tradeable peer groups (model + geography matched); overlap allowed
+function comparable(a,b){return CLUSTERS.some(s=>s.has(a)&&s.has(b));}
+const MINOVL=365; // require >=1y common history for a pair flag
+function pairFlags(sec,topK){
+  const names=SEC[sec],cur={};names.forEach(t=>cur[t]=lastVal(t));
+  const out=[];
+  for(let i=0;i<names.length;i++)for(let j=i+1;j<names.length;j++){
+    const a=names[i],b=names[j];if(!comparable(a,b))continue;if(cur[a]==null||cur[b]==null||cur[a]<=0||cur[b]<=0)continue;
+    const A=PE[a],B=PE[b],lr=[];
+    for(let x=0;x<N;x++)if(A[x]!=null&&B[x]!=null&&A[x]>0&&B[x]>0)lr.push(Math.log(A[x]/B[x]));
+    if(lr.length<MINOVL)continue;
+    const m=lr.reduce((s,x)=>s+x,0)/lr.length, sd=Math.sqrt(lr.reduce((s,x)=>s+(x-m)**2,0)/(lr.length-1));
+    if(!sd)continue;
+    const c=Math.log(cur[a]/cur[b]);
+    out.push({a,b,z:(c-m)/sd,propGap:Math.exp(c-m)-1,cur:cur[a]/cur[b]-1,n:lr.length});
+  }
+  out.sort((x,y)=>Math.abs(y.z)-Math.abs(x.z));
+  return out.slice(0,topK);
+}
+function renderPairFlags(){
+  let cards='';
+  sectorList().forEach(sec=>{
+    const fl=pairFlags(sec,4);
+    const rows=fl.map(p=>{
+      const side=p.z>=0?'rich':'cheap';
+      const zstr=(p.z>=0?'+':'\u2212')+Math.abs(p.z).toFixed(1)+'\u03c3';
+      const gp=(p.propGap>=0?'+':'\u2212')+Math.abs(p.propGap*100).toFixed(0)+'%';
+      const title=`${p.a} \u00f7 ${p.b}: ${p.a} ${p.z>=0?'rich':'cheap'} vs ${p.b} \u2014 ${Math.abs(p.z).toFixed(1)}\u03c3 from its 5-yr norm \u00b7 multiple ratio ${gp} vs average \u00b7 current premium ${sgn(p.cur)} \u00b7 n=${p.n.toLocaleString()}`;
+      return `<div class="prow" data-a="${p.a}" data-b="${p.b}" title="${title}"><div><div class="pp">${p.a} \u00f7 ${p.b}</div><div class="psub">ratio ${gp} vs 5-yr avg</div></div><span class="pgap ${side}">${zstr}</span></div>`;
+    }).join('') || '<div class="psub" style="padding:6px 4px;">\u2014 no qualifying peer pairs</div>';
+    cards+=`<div class="fcard"><h4>${sec}<small>top dislocations</small></h4>${rows}</div>`;
+  });
+  const host=document.getElementById('f-pairs');host.innerHTML=cards;
+  host.querySelectorAll('.prow[data-a]').forEach(el=>el.onclick=()=>loadPair(el.dataset.a,el.dataset.b,SECOF[el.dataset.a]));
+}
+function loadPair(a,b,sec){ST.A=a;ST.B=b;ST.aSec=sec;ST.bSec=sec;initPairControls();switchTab('pairs');renderPairs();}
+function loadPairFromName(name){
+  const sec=SECOF[name]; if(!sec)return;
+  const peers=SEC[sec].filter(x=>x!==name);
+  const medc=median(SEC[sec].map(lastVal));
+  const B=peers.reduce((best,x)=>Math.abs(lastVal(x)-medc)<Math.abs(lastVal(best)-medc)?x:best,peers[0]);
+  ST.A=name;ST.aSec=sec;ST.B=B;ST.bSec=sec;
+  initPairControls();switchTab('pairs');renderPairs();
+}
+
+// ---------- SUMMARY ----------
+function renderSummary(){
+  const tk=t=>`<span class="tk" data-t="${t}">${t}</span>`;
+  const pk=(a,b)=>`<span class="tk" data-a="${a}" data-b="${b}">${a} \u00f7 ${b}</span>`;
+  const vcs=v=>`<span class="${v>=0?'pos':'neg'}">${sgn(v,0)}</span>`;
+  const zs=z=>`<span class="${z>=0?'pos':'neg'}">${(z>=0?'+':'\u2212')+Math.abs(z).toFixed(1)}\u03c3</span>`;
+  let totN=0,totCheap=0;
+  let html='';
+  sectorList().forEach(sec=>{
+    const {rows,medCur}=sectorMetrics(sec);const n=rows.length;
+    const cheapN=rows.filter(r=>r.z<0).length;totN+=n;totCheap+=cheapN;
+    const byVC=rows.slice().sort((a,b)=>b.vc-a.vc);
+    const byZ=rows.slice().sort((a,b)=>a.z-b.z);
+    const r0=byVC[0],r1=byVC[1],c0=byVC[n-1],c1=byVC[n-2];
+    const zlo=byZ[0],zhi=byZ[n-1];
+    const fl=pairFlags(sec,2);
+    const pairTxt=fl.length? fl.map(p=>`${pk(p.a,p.b)} \u2014 ${p.a} ${p.z>=0?'<span class="pos">rich</span>':'<span class="neg">cheap</span>'} vs ${p.b} (${zs(p.z)}, ratio ${(p.propGap>=0?'+':'\u2212')+Math.abs(p.propGap*100).toFixed(0)}% vs avg)`).join('; ')
+      : 'no qualifying peer pairs with \u22651y shared history';
+    html+=`<div class="sumsec"><div class="sumhead">${sec}<span>median ${px(medCur)} \u00b7 ${cheapN}/${n} below their 5-yr average</span></div>
+      <ul class="sumbul">
+        <li><b>vs sector</b> richest ${tk(r0.t)} ${vcs(r0.vc)}, ${tk(r1.t)} ${vcs(r1.vc)}; cheapest ${tk(c0.t)} ${vcs(c0.vc)}, ${tk(c1.t)} ${vcs(c1.vc)} vs the ${px(medCur)} median.</li>
+        <li><b>vs own history</b> ${tk(zlo.t)} sits cheapest in its own 5-yr range (${zs(zlo.z)}, ${zlo.pile.toFixed(0)}th pctile); ${tk(zhi.t)} the highest (${zs(zhi.z)}, ${zhi.pile.toFixed(0)}th).</li>
+        <li><b>pairs</b> ${pairTxt}.</li>
+      </ul></div>`;
+  });
+  document.getElementById('sum-intro').innerHTML=`Snapshot ${fmtFull(DATA.asof)}. Across coverage, <b>${totCheap} of ${totN}</b> names trade below their own 5-yr average forward P/E. Standouts by sub-sector:`;
+  const host=document.getElementById('sum-body');host.innerHTML=html;
+  host.querySelectorAll('.tk[data-t]').forEach(el=>el.onclick=()=>loadPairFromName(el.dataset.t));
+  host.querySelectorAll('.tk[data-a]').forEach(el=>el.onclick=()=>loadPair(el.dataset.a,el.dataset.b,SECOF[el.dataset.a]));
+}
+// ---------- SCREEN ----------
+const SCOLS=[['t','Ticker'],['cur','Curr'],['a1','1Y'],['a3','3Y'],['a5','5Y'],['pile','%ile'],['z','Z'],['vc','vs Sec·Curr'],['vh','vs Sec·Hist'],['gap','Re-rate gap']];
+function renderScreen(){
+  const sec=ST.sSec,{rows,medCur,medA5}=sectorMetrics(sec);
+  const k=ST.sSort.k,dir=ST.sSort.dir;
+  rows.sort((x,y)=>k==='t'?(x.t<y.t?-1:1)*dir:((x[k]-y[k])*dir));
+  const thead=document.querySelector('#s-table thead');
+  thead.innerHTML='<tr>'+SCOLS.map(([key,lab])=>`<th data-k="${key}">${lab}${k===key?`<span class="ar">${dir>0?'▲':'▼'}</span>`:''}</th>`).join('')+'</tr>';
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{const kk=th.dataset.k;if(ST.sSort.k===kk)ST.sSort.dir*=-1;else{ST.sSort.k=kk;ST.sSort.dir=1;}renderScreen();});
+  const tb=document.querySelector('#s-table tbody');
+  tb.innerHTML=`<tr class="secrow"><td colspan="${SCOLS.length}">${sec} · median ${px(medCur)} (5-yr ${px(medA5)})</td></tr>`+
+    rows.map(r=>{
+      const pileC=`background:${scaleBG(r.pile,0,50,100,[227,241,232],WHITE,[251,231,228])};color:${r.pile<25||r.pile>75?'#1a2a35':'#33454f'}`;
+      const zC=`background:${scaleBG(r.z,-2,0,2,[227,241,232],WHITE,[251,231,228])}`;
+      const gC=`background:${scaleBG(r.gap,-0.15,0,0.15,[227,241,232],WHITE,[251,231,228])}`;
+      return `<tr><td data-t="${r.t}">${r.t}</td><td class="num">${px(r.cur)}</td>
+        <td class="num muted-c">${r.a1!=null?px(r.a1):'—'}</td><td class="num muted-c">${r.a3!=null?px(r.a3):'—'}</td><td class="num muted-c">${px(r.a5)}</td>
+        <td class="num"><span class="cell" style="${pileC}">${r.pile.toFixed(0)}</span></td>
+        <td class="num"><span class="cell" style="${zC}">${(r.z>=0?'+':'−')+Math.abs(r.z).toFixed(2)}</span></td>
+        <td class="num">${sgn(r.vc,0)}</td><td class="num">${sgn(r.vh,0)}</td>
+        <td class="num"><span class="cell" style="${gC}">${sgn(r.gap,0)}</span></td></tr>`;}).join('');
+  tb.querySelectorAll('td[data-t]').forEach(td=>td.onclick=()=>{const t=td.dataset.t;ST.A=t;ST.aSec=SECOF[t]||'All coverage';initPairControls();switchTab('pairs');renderPairs();});
+}
+
+// ---------- MATRIX ----------
+function renderMatrix(){
+  const sec=ST.mSec,names=SEC[sec],cur={};names.forEach(t=>cur[t]=lastVal(t));
+  const tbl=document.getElementById('m-table');
+  let html='<tr><th class="corner"></th>'+names.map(t=>`<th class="col"><div>${t}</div></th>`).join('')+'</tr>';
+  for(const ri of names){
+    html+=`<tr><th class="row">${ri}</th>`;
+    for(const ci of names){
+      if(ri===ci){html+='<td class="diag"></td>';continue;}
+      let bg,fg='#1a2a35',disp;const c=cur[ri]/cur[ci]-1;
+      if(ST.mMode==='curr'){bg=scaleBG(c,-0.5,0,0.5,BLUE,WHITE,RED);disp=(c>=0?'+':'−')+Math.abs(c*100).toFixed(0);}
+      else{const ps=pairSeries(ri,ci);const m=ps.val.length?ps.val.reduce((s,x)=>s+x,0)/ps.val.length:0;const val=c-m;bg=scaleBG(val,-0.15,0,0.15,GREEN,WHITE,RED);disp=(val>=0?'+':'−')+Math.abs(val*100).toFixed(0);}
+      const rgb=bg.match(/\d+/g).map(Number),lum=0.299*rgb[0]+0.587*rgb[1]+0.114*rgb[2];fg=lum<140?'#fff':'#1a2a35';
+      html+=`<td style="background:${bg};color:${fg}" data-a="${ri}" data-b="${ci}" title="${ri} ÷ ${ci}: ${disp}%">${disp}</td>`;
+    }
+    html+='</tr>';
+  }
+  tbl.innerHTML=html;
+  tbl.querySelectorAll('td[data-a]').forEach(td=>td.onclick=()=>{ST.A=td.dataset.a;ST.B=td.dataset.b;ST.aSec=sec;ST.bSec=sec;initPairControls();switchTab('pairs');renderPairs();});
+  const leg=document.getElementById('m-leg');
+  leg.innerHTML=(ST.mMode==='curr')
+    ?`Row cheaper <span class="bar" style="background:linear-gradient(90deg,rgb(91,155,213),#fff,rgb(192,57,43))"></span> Row richer &nbsp;·&nbsp; centred at parity`
+    :`Unusually cheap vs history <span class="bar" style="background:linear-gradient(90deg,rgb(46,125,82),#fff,rgb(192,57,43))"></span> Unusually rich &nbsp;·&nbsp; vs full-history average spread`;
+}
+
+// ---------- tabs ----------
+// ---------- SOFTWARE (reference for JKHY) ----------
+const SWLBL={'MSFT US':'Microsoft','ORCL US':'Oracle','CRM US':'Salesforce','NOW US':'ServiceNow','WDAY US':'Workday','ADBE US':'Adobe','INTU US':'Intuit','ADSK US':'Autodesk'};
+function swMean(arr){const v=arr.filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null;}
+function swAggAt(i,fn){return fn(SW.names.map(t=>SW.pe[t][i]));}
+function swSeries(key){
+  if(key==='JKHY US')return PE['JKHY US'];
+  if(key==='~avg')return D.map((_,i)=>swAggAt(i,swMean));
+  if(key==='~med')return D.map((_,i)=>swAggAt(i,median));
+  return SW.pe[key]||D.map(()=>null);
+}
+function swLabel(key){return key==='~avg'?'Software average':key==='~med'?'Software median':key==='JKHY US'?'JKHY':(SWLBL[key]||key.replace(' US',''));}
+function swOpts(){return [{v:'JKHY US',t:'JKHY (Jack Henry)'},{v:'~avg',t:'Software average'},{v:'~med',t:'Software median'}].concat(SW.names.map(t=>({v:t,t:SWLBL[t]+' ('+t.replace(' US','')+')'})));}
+function swPctile(arr,x){const a=arr.filter(v=>v!=null).slice().sort((p,q)=>p-q);if(!a.length||x==null)return null;let c=0;for(const v of a)if(v<=x)c++;return c/a.length*100;}
+function renderSW(){
+  const m=ST.swM||0,last=D[N-1];let start=0;
+  if(m){const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);const cs=cut.toISOString().slice(0,10);start=D.findIndex(d=>d>=cs);if(start<0)start=0;}
+  const A=ST.swA,B=ST.swB,sA=swSeries(A),sB=swSeries(B);
+  const idxs=[];for(let i=start;i<N;i++)idxs.push(i);const n=idxs.length;
+  let lo=Infinity,hi=-Infinity;const con=v=>{if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v;}};
+  idxs.forEach(i=>{con(sA[i]);con(sB[i]);SW.names.forEach(t=>con(SW.pe[t][i]));});
+  if(!(hi>lo)){lo=0;hi=1;}const pad=(hi-lo)*0.06;lo-=pad;hi+=pad;if(lo<0)lo=0;
+  const W=900,H=380,PADL=52,PADR=14,PADT=14,PADB=28,pw=W-PADL-PADR,ph=H-PADT-PADB;
+  const X=k=>PADL+(n<=1?0:k/(n-1)*pw),Y=v=>PADT+(hi===lo?ph/2:(hi-v)/(hi-lo)*ph);
+  const path=arr=>{let d='',pen=false;arr.forEach((v,k)=>{if(v==null){pen=false;return;}d+=(pen?'L':'M')+X(k).toFixed(1)+' '+Y(v).toFixed(1)+' ';pen=true;});return d.trim();};
+  let grid='';npTicks(lo,hi,7).forEach(tv=>{const y=Y(tv).toFixed(1);grid+=`<line x1="${PADL}" y1="${y}" x2="${W-PADR}" y2="${y}" stroke="var(--line)" stroke-width="1"/><text x="${PADL-6}" y="${(+y+3).toFixed(1)}" text-anchor="end" font-size="11" fill="var(--muted)">${tv}</text>`;});
+  let xax='',pv=null;idxs.forEach((i,k)=>{const y=D[i].slice(0,4);if(y!==pv){pv=y;xax+=`<text x="${X(k).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--muted)">${y}</text>`;}});
+  let soft='';SW.names.forEach(t=>{if(t!==A&&t!==B)soft+=`<path d="${path(idxs.map(i=>SW.pe[t][i]))}" fill="none" stroke="#C9D2D9" stroke-width="1" opacity="0.6"/>`;});
+  const pB=`<path d="${path(idxs.map(i=>sB[i]))}" fill="none" stroke="#E2733A" stroke-width="2.4"/>`;
+  const pA=`<path d="${path(idxs.map(i=>sA[i]))}" fill="none" stroke="#15697A" stroke-width="2.4"/>`;
+  const la=sA[N-1],lb=sB[N-1];
+  const dots=(la!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(la).toFixed(1)}" r="3.6" fill="#15697A"/>`:'')+(lb!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="3.6" fill="#E2733A"/>`:'');
+  document.getElementById('sw-chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${grid}<line x1="${PADL}" y1="${PADT}" x2="${PADL}" y2="${PADT+ph}" stroke="var(--line2)" stroke-width="1"/>${xax}${soft}${pB}${pA}${dots}</svg>`;
+  document.getElementById('sw-legend').innerHTML=
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#15697A;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>${swLabel(A)}</span>`+
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#E2733A;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>${swLabel(B)}</span>`+
+    `<span><i style="display:inline-block;width:16px;height:3px;background:#C9D2D9;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>other software</span>`;
+  document.getElementById('sw-title').textContent=swLabel(A)+' vs '+swLabel(B)+' \u2014 forward P/E';
+  const gap=(la!=null&&lb!=null&&lb!==0)?(la/lb-1)*100:null,ap=swPctile(sA,la);
+  const cards=[{k:swLabel(A)+' P/E',v:la==null?'\u2014':la.toFixed(1)+'x'},
+    {k:swLabel(B)+' P/E',v:lb==null?'\u2014':lb.toFixed(1)+'x'},
+    {k:swLabel(A)+' vs '+swLabel(B),v:gap==null?'\u2014':(gap>=0?'+':'\u2212')+Math.abs(gap).toFixed(1)+'%',cls:gap==null?'':(gap>=0?'pos':'neg')},
+    {k:swLabel(A)+' 5Y %ile',v:ap==null?'\u2014':ap.toFixed(0)+'<small>th</small>'}];
+  document.getElementById('sw-stats').innerHTML=cards.map(c=>`<div class="stat"><div class="k">${c.k}</div><div class="v num ${c.cls||''}">${c.v}</div></div>`).join('');
+  const isSel=key=>key===A||key===B;
+  const rows=[{key:'JKHY US',nm:'JKHY <span style="color:var(--muted)">Jack Henry</span>',cur:PE['JKHY US'][N-1]},
+              {key:'~avg',nm:'Software average',cur:swAggAt(N-1,swMean),agg:1},
+              {key:'~med',nm:'Software median',cur:swAggAt(N-1,median),agg:1}];
+  SW.names.map(t=>({key:t,nm:(SWLBL[t]||t)+' <span style="color:var(--muted)">'+t.replace(' US','')+'</span>',cur:SW.pe[t][N-1]}))
+          .filter(r=>r.cur!=null).sort((a,b)=>b.cur-a.cur).forEach(r=>rows.push(r));
+  const tbl=document.getElementById('sw-table');
+  tbl.querySelector('thead').innerHTML='<tr><th>Name</th><th>Fwd P/E</th><th>5Y &percnt;ile</th></tr>';
+  tbl.querySelector('tbody').innerHTML=rows.map(r=>{
+    const p=swPctile(swSeries(r.key),r.cur),pl=p==null?'\u2014':p.toFixed(0);
+    const col=r.key===A?'#15697A':r.key===B?'#E2733A':'';
+    const st=isSel(r.key)?` style="font-weight:700;color:${col}"`:(r.agg?' style="font-weight:600;color:#9aa3ab"':'');
+    return `<tr${st}><td>${r.nm}</td><td class="num">${r.cur.toFixed(1)}x</td><td class="num">${pl}</td></tr>`;}).join('');
+  document.getElementById('sw-note').innerHTML='Software aggregates span '+SW.names.length+' names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). NTM forward P/E from Bloomberg, weekday series, as of <b>'+SW.asof+'</b>. 5Y %ile = where today sits within that series\u2019 own embedded history. <b>Reference only</b> \u2014 not part of Pairs, Screen, Matrix, Consistency or the Backtest. JKHY is drawn from the main coverage panel.';
+}
+(function initSW(){const o=swOpts();fillSelV(document.getElementById('sw-a'),o,ST.swA);fillSelV(document.getElementById('sw-b'),o,ST.swB);
+  document.getElementById('sw-a').onchange=e=>{ST.swA=e.target.value;renderSW();};
+  document.getElementById('sw-b').onchange=e=>{ST.swB=e.target.value;renderSW();};
+  document.querySelectorAll('#sw-range button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#sw-range button').forEach(x=>x.removeAttribute('aria-selected'));b.setAttribute('aria-selected','true');ST.swM=+b.dataset.m;renderSW();});
+})();
+
+function switchTab(t){
+  ST.tab=t;
+  document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('active',v.id==='view-'+t));
+  if(t==='pairs')requestAnimationFrame(()=>renderPairs());
+  if(t==='flags'){renderFlags();renderPairFlags();}
+  if(t==='summary')renderSummary();
+  if(t==='screen')renderScreen();
+  if(t==='matrix')renderMatrix();
+  if(t==='grid')renderGrid();
+  if(t==='namepe')renderNamePE();
+  if(t==='software')renderSW();
+  if(t==='coverage')renderCoverage();
+  if(t==='consistency')renderConsistency();
+  if(t==='backtest')renderBacktest();
+}
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+
+// ---------- wire ----------
+aSecSel.onchange=()=>{ST.aSec=aSecSel.value;refreshPairNames();renderPairs();};
+bSecSel.onchange=()=>{ST.bSec=bSecSel.value;refreshPairNames();renderPairs();};
+pA.onchange=()=>{ST.A=pA.value;renderPairs();};
+pB.onchange=()=>{ST.B=pB.value;renderPairs();};
+document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,ST.bSec]=[ST.bSec,ST.aSec];initPairControls();renderPairs();};
+document.getElementById('p-range').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.m=+b.dataset.m;document.querySelectorAll('#p-range button').forEach(x=>x.setAttribute('aria-selected',x===b));renderPairs();});
+document.getElementById('f-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.fMode=b.dataset.mode;document.querySelectorAll('#f-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderFlags();});
+
+const sSecSel=document.getElementById('s-sector');fillSel(sSecSel,['All coverage',...sectorList()],ST.sSec);sSecSel.onchange=()=>{ST.sSec=sSecSel.value;renderScreen();};
+const mSecSel=document.getElementById('m-sector');fillSel(mSecSel,sectorList(),ST.mSec);mSecSel.onchange=()=>{ST.mSec=mSecSel.value;renderMatrix();};
+document.getElementById('m-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.mMode=b.dataset.mode;document.querySelectorAll('#m-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderMatrix();});
+
+let rT;window.addEventListener('resize',()=>{clearTimeout(rT);rT=setTimeout(()=>{if(ST.tab==='pairs')renderPairs();else if(ST.tab==='backtest')renderBacktest();},120);});
+
+
+// ===== COVERAGE TABLE TAB =====
+function covBench(rows,which){const c=rows.map(r=>r.cur),h=rows.map(r=>r.a5).filter(x=>x!=null);
+  if(which==='median')return {cur:median(c),hist:median(h)};
+  return {cur:c.reduce((a,b)=>a+b,0)/c.length,hist:h.length?h.reduce((a,b)=>a+b,0)/h.length:null};}
+function covPct(x){if(x==null)return '\u2014';const col=x<0?'#2E7D52':'#C0392B';return '<span style="color:'+col+'">'+sgn(x,0)+'</span>';}
+function covPair(a,b){const ps=pairSeries(a,b),s=stat(ps.val);
+  if(!s||s.n<60)return '<span style="color:var(--faint)">'+b+': insufficient overlapping history</span>';
+  const pc=s.cur<0?'#2E7D52':'#C0392B',zc=s.z<0?'#2E7D52':'#C0392B';
+  return '<b>'+a+' \u00f7 '+b+'</b> &nbsp; <span style="color:'+pc+'">'+sgn(s.cur,0)+'</span> now &middot; avg '+sgn(s.mean,0)+' &middot; <span style="color:'+zc+'">'+(s.z>=0?'+':'\u2212')+Math.abs(s.z).toFixed(1)+'\u03c3</span> &middot; '+s.pile.toFixed(0)+'th pct';}
+function covUpdate(t){const sp=document.querySelector('#cov-tbl .ps[data-t="'+t+'"]');if(!sp)return;const p=ST.peer[t];sp.innerHTML=p?covPair(t,p):'';}
+function loadPairX(a,b){ST.A=a;ST.aSec=SECOF[a]||'All coverage';ST.B=b;ST.bSec=SECOF[b]||'All coverage';initPairControls();switchTab('pairs');renderPairs();}
+function renderCoverage(){
+  const agg=ST.covAgg,word=agg==='median'?'median':'average';
+  document.querySelectorAll('#cov-agg button').forEach(b=>b.setAttribute('aria-selected',b.dataset.a===agg));
+  const aw=document.getElementById('cov-aggw');if(aw)aw.textContent=word;
+  const CK=[['t','Company'],['cur','Curr P/E'],['vc','vs sector<br>(now)'],['vh','vs sector<br>(hist)'],['own','vs own<br>history']];const csk=ST.covSort.k,csd=ST.covSort.dir;
+  document.querySelector('#cov-tbl thead').innerHTML='<tr>'+CK.map(c=>'<th data-k="'+c[0]+'">'+c[1]+(csk===c[0]?'<span class="ar">'+(csd>0?'\u25B2':'\u25BC')+'</span>':'')+'</th>').join('')+'<th class="pair">Custom pair &middot; premium now / 5-yr avg / stretch</th></tr>';
+  let html='';
+  sectorList().forEach(sec=>{
+    const rows=namesIn(sec).filter(t=>PE[t]).map(t=>({t,...nameStats(t)})).filter(r=>r&&r.cur!=null);
+    if(!rows.length)return;
+    const ag=covBench(rows,agg);
+    rows.forEach(r=>{r.vc=ag.cur?r.cur/ag.cur-1:null;r.vh=(r.a5!=null&&ag.hist)?r.a5/ag.hist-1:null;r.own=r.a5?r.cur/r.a5-1:null;});
+    rows.sort((x,y)=>{const k=ST.covSort.k,d=ST.covSort.dir;if(k==='t')return (x.t<y.t?-1:x.t>y.t?1:0)*d;const xv=x[k],yv=y[k];if(xv==null&&yv==null)return 0;if(xv==null)return 1;if(yv==null)return -1;return (xv-yv)*d;});
+    html+='<tr class="secrow"><td colspan="6">'+sec+' &middot; '+word+' '+px(ag.cur)+(ag.hist?' (5-yr '+px(ag.hist)+')':'')+'</td></tr>';
+    rows.forEach(r=>{
+      const peer=ST.peer[r.t]||'';
+      let opt='<option value="">\u2014 pick peer \u2014</option>';
+      sectorList().forEach(s2=>{opt+='<optgroup label="'+s2+'">';namesIn(s2).filter(x=>PE[x]&&x!==r.t).forEach(x=>{opt+='<option value="'+x+'"'+(x===peer?' selected':'')+'>'+x+'</option>';});opt+='</optgroup>';});
+      html+='<tr><td data-tk="'+r.t+'">'+r.t+'</td><td class="num">'+px(r.cur)+'</td><td class="num">'+covPct(r.vc)+'</td><td class="num">'+covPct(r.vh)+'</td><td class="num">'+covPct(r.own)+'</td>'
+        +'<td class="pair"><select class="peer" data-t="'+r.t+'">'+opt+'</select><span class="ps" data-t="'+r.t+'">'+(peer?covPair(r.t,peer):'')+'</span></td></tr>';
+    });
+  });
+  const tb=document.querySelector('#cov-tbl tbody');tb.innerHTML=html;
+  tb.querySelectorAll('td[data-tk]').forEach(td=>td.onclick=()=>loadPairFromName(td.dataset.tk));
+  tb.querySelectorAll('select.peer').forEach(s=>s.onchange=()=>{const t=s.dataset.t;if(s.value)ST.peer[t]=s.value;else delete ST.peer[t];covUpdate(t);});
+  tb.querySelectorAll('.ps').forEach(sp=>sp.onclick=()=>{const t=sp.dataset.t,p=ST.peer[t];if(p)loadPairX(t,p);});
+  document.querySelectorAll('#cov-tbl thead th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(ST.covSort.k===k)ST.covSort.dir*=-1;else ST.covSort={k,dir:1};renderCoverage();});
+}
+document.getElementById('cov-agg').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.covAgg=b.dataset.a;renderCoverage();});
+
+// ===== CONSISTENCY TAB =====
+function conPct(x,good,dp){if(x==null)return '<span style="color:var(--faint)">\u2014</span>';const ok=good==='pos'?x>0:x<0;return '<span style="color:'+(ok?'#2E7D52':'#C0392B')+'">'+(x>=0?'+':'\u2212')+Math.abs(x).toFixed(dp)+'%</span>';}
+function conDev(x){if(x==null)return '\u2014';return '<span style="color:'+(x<0?'#2E7D52':'#C0392B')+'">'+(x>=0?'+':'\u2212')+Math.abs(x).toFixed(1)+'%</span>';}
+function conIC(x){if(x==null)return '<span style="color:var(--faint)">\u2014</span>';return '<span style="color:'+(x>0?'#2E7D52':'#C0392B')+';font-weight:600;">'+(x>=0?'+':'\u2212')+Math.abs(x).toFixed(2)+'</span>';}
+function conChart(r){
+  const ser=r.ser||[]; if(ser.length<3) return '<div class="qnochart">Not enough history to chart.</div>';
+  const W=560,H=300,ml=10,mr=14,mt=16,mb=28,pw=W-ml-mr,ph=H-mt-mb;
+  const L=ser.length,monIdx={}; ser.forEach((s,i)=>monIdx[s.t]=i);
+  const xi=i=>ml+(L<=1?0:pw*i/(L-1));
+  let lo=0,hi=0; ser.forEach(s=>{if(s.d<lo)lo=s.d;if(s.d>hi)hi=s.d;}); (r.q||[]).forEach(o=>{if(o.dev<lo)lo=o.dev;if(o.dev>hi)hi=o.dev;});
+  const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad; const span=(hi-lo)||1, y=v=>mt+ph*(hi-v)/span;
+  const qs=(r.q||[]).filter(o=>o.dm&&(o.dm in monIdx));
+  let bands='';
+  qs.forEach((o,k)=>{const i0=monIdx[o.dm],i1=(k+1<qs.length&&(qs[k+1].dm in monIdx))?monIdx[qs[k+1].dm]:L-1;const x0=xi(i0),x1=xi(i1);const fill=o.long===r.a?'rgba(21,105,122,.08)':'rgba(226,115,58,.09)';const tip=o.p+'  \u00b7  '+r.a+' '+(o.dev<0?(Math.abs(o.dev).toFixed(1)+'% cheap'):(o.dev.toFixed(1)+'% rich'))+'  \u00b7  long '+o.long+'  \u00b7  '+(o.ret>=0?'+':'\u2212')+Math.abs(o.ret).toFixed(1)+'%  '+(o.win?'\u2713':'\u2717');bands+='<rect x="'+x0.toFixed(1)+'" y="'+mt+'" width="'+Math.max(0.5,x1-x0).toFixed(1)+'" height="'+ph+'" fill="'+fill+'"><title>'+esc(tip)+'</title></rect>';});
+  const zy=y(0);
+  const zero='<line x1="'+ml+'" y1="'+zy.toFixed(1)+'" x2="'+(W-mr)+'" y2="'+zy.toFixed(1)+'" stroke="var(--line2)" stroke-width="1" stroke-dasharray="3 3"/><text x="'+(W-mr)+'" y="'+(zy-4).toFixed(1)+'" text-anchor="end" font-size="9" fill="var(--faint)">normal (0%)</text>';
+  const pts=ser.map((s,i)=>xi(i).toFixed(1)+','+y(s.d).toFixed(1)).join(' ');
+  const line='<polyline points="'+pts+'" fill="none" stroke="var(--series)" stroke-width="1.7"/>';
+  let marks='';
+  qs.forEach(o=>{const cx=xi(monIdx[o.dm]),cy=y(o.dev),col=o.win?'#2E7D52':'#C0392B';const tip=o.p+'  \u00b7  long '+o.long+'  \u00b7  '+(o.ret>=0?'+':'\u2212')+Math.abs(o.ret).toFixed(1)+'%  '+(o.win?'won':'lost');marks+='<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="3.6" fill="'+col+'" stroke="#fff" stroke-width="1"><title>'+esc(tip)+'</title></circle>';});
+  let xlab='';
+  qs.forEach((o,k)=>{if(k%2===0){const cx=xi(monIdx[o.dm]);xlab+='<text x="'+cx.toFixed(1)+'" y="'+(H-9)+'" text-anchor="middle" font-size="8.5" fill="var(--faint)">'+o.p+'</text>';}});
+  const svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="xMidYMid meet" class="qsvg">'+bands+zero+line+marks+xlab+'</svg>';
+  const legend='<div class="qchartleg"><span><i class="dotg"></i>won</span><span><i class="dotr"></i>lost</span><span><i class="bandA"></i>long '+legRoot(r.a)+' (cheap)</span><span><i class="bandB"></i>long '+legRoot(r.b)+' ('+legRoot(r.a)+' rich)</span></div>';
+  const cap='<div class="qchartcap">Line = '+r.a+'\u2019s P/E premium (+) / discount (\u2212) vs '+r.b+' relative to their historical average. Each dot is a quarter\u2019s entry (green = the side-switching trade won that quarter, red = lost); the shaded band shows which name was held long. Hover any point for detail.</div>';
+  return '<div class="qchartttl">Premium / discount vs history \u2014 with quarterly positions</div>'+svg+legend+cap;
+}
+function conDetail(r){
+  const head='<div class="qdethead">'+r.a+' \u00f7 '+r.b+' \u2014 '+r.nq+' quarters \u00b7 '+r.hit+'% hit \u00b7 '+(r.avgq>=0?'+':'\u2212')+Math.abs(r.avgq).toFixed(1)+'%/qtr avg \u00b7 '+(r.cum>=0?'+':'\u2212')+Math.abs(r.cum)+'% cumulative<span class="qchart" data-a="'+r.a+'" data-b="'+r.b+'">view full chart \u2197</span></div>';
+  const rows=r.q.map(o=>{const rc=o.ret>0?'#2E7D52':'#C0392B',dc=o.dev<0?'#2E7D52':'#C0392B',sh=(o.long===r.a?r.b:r.a);
+    return '<tr><td>'+o.p+'</td><td class="num" style="color:'+dc+'">'+(o.dev>=0?'+':'\u2212')+Math.abs(o.dev).toFixed(1)+'%</td><td>long '+o.long+' / short '+sh+'</td><td class="num" style="color:'+rc+'">'+(o.ret>=0?'+':'\u2212')+Math.abs(o.ret).toFixed(1)+'%</td><td class="num" style="color:'+rc+'">'+(o.win?'\u2713':'\u2717')+'</td></tr>';}).join('');
+  const leg='<div style="font-size:11px;color:var(--muted);margin:-3px 0 11px;line-height:1.55;max-width:650px;">Gap = '+r.a+'\u2019s P/E vs '+r.b+', relative to their historical-average relationship: <b>+</b> means '+r.a+' is <b>rich</b> (so the trade shorts '+r.a+' and goes <b>long '+r.b+'</b>), <b>\u2212</b> means '+r.a+' is <b>cheap</b> (so it goes <b>long '+r.a+'</b> and shorts '+r.b+'). It always shorts the richer name and buys the cheaper one, betting the gap reverts.</div>';
+  const table='<table class="qdet"><thead><tr><th>Quarter</th><th class="num">Disc / prem<br>at start</th><th>Position that quarter</th><th class="num">Q return</th><th class="num">Hit</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  return head+leg+'<div class="qdetgrid"><div class="qdetleft">'+table+'</div><div class="qdetright">'+conChart(r)+'</div></div>';
+}
+function renderConsistency(){
+  ST.conOpen=null;
+  const minq=ST.conMinQ,sec=ST.conSec;
+  const mv=document.getElementById('con-minq-v');if(mv)mv.textContent=minq+' q';
+  const rows=QD.filter(r=>r.nq>=minq&&(sec==='all'||r.sec===sec));
+  const S=ST.conSort,kf={pair:r=>r.a+r.b,hit:r=>r.hit,avgq:r=>r.avgq,cum:r=>r.cum,ic:r=>r.ic==null?-99:r.ic,nq:r=>r.nq,devnow:r=>r.devnow};
+  rows.sort((x,y)=>{const a=kf[S.k](x),b=kf[S.k](y);return S.k==='pair'?S.dir*((a<b)?-1:(a>b)?1:0):S.dir*(a-b);});
+  const CC=[['pair','Pair'],['hit','Hit rate (Q)'],['avgq','Avg / Q'],['cum','Cumulative'],['ic','IC (Q)'],['nq','n'],['devnow','Disc/prem now']];
+  document.querySelector('#con-tbl thead').innerHTML='<tr>'+CC.map(c=>'<th data-k="'+c[0]+'">'+c[1]+(S.k===c[0]?'<span class="ar">'+(S.dir>0?'\u25B2':'\u25BC')+'</span>':'')+'</th>').join('')+'</tr>';
+  document.querySelector('#con-tbl tbody').innerHTML=rows.map(r=>{
+    const hb=scaleBG(r.hit,45,60,78,[251,231,228],WHITE,[227,241,232]);
+    return '<tr data-a="'+r.a+'" data-b="'+r.b+'"><td class="pcell"><span class="conchev">\u25B8</span>'+r.a+' \u00f7 '+r.b+'</td>'+
+      '<td class="num"><span class="cell" style="background:'+hb+'">'+r.hit+'%</span></td>'+
+      '<td class="num">'+conPct(r.avgq,'pos',1)+'</td>'+
+      '<td class="num">'+conPct(r.cum,'pos',0)+'</td>'+
+      '<td class="num">'+conIC(r.ic)+'</td>'+
+      '<td class="num muted-c">'+r.nq+'</td>'+
+      '<td class="num">'+conDev(r.devnow)+'</td></tr>';
+  }).join('');
+  const tb=document.querySelector('#con-tbl tbody');
+  tb.querySelectorAll('tr[data-a]').forEach(tr=>tr.onclick=()=>{
+    const key=tr.dataset.a+'|'+tr.dataset.b,ex=tb.querySelector('tr.condetail'),wasOpen=ST.conOpen===key;
+    if(ex)ex.remove();
+    tb.querySelectorAll('.conchev').forEach(c=>c.textContent='\u25B8');
+    if(wasOpen){ST.conOpen=null;return;}
+    ST.conOpen=key;
+    const chev=tr.querySelector('.conchev');if(chev)chev.textContent='\u25BE';
+    const rec=QD.find(r=>r.a===tr.dataset.a&&r.b===tr.dataset.b);
+    const dr=document.createElement('tr');dr.className='condetail';
+    const td=document.createElement('td');td.colSpan=7;td.innerHTML='<div class="qdetwrap">'+conDetail(rec)+'</div>';dr.appendChild(td);tr.after(dr);
+    const qc=dr.querySelector('.qchart');if(qc)qc.onclick=(ev)=>{ev.stopPropagation();loadPairX(qc.dataset.a,qc.dataset.b);};
+  });
+  document.querySelectorAll('#con-tbl thead th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(ST.conSort.k===k)ST.conSort.dir*=-1;else ST.conSort={k,dir:(k==='pair'?1:-1)};renderConsistency();});
+  const cc=document.getElementById('con-count');if(cc)cc.textContent=rows.length+' pairs';
+}
+(function(){const sel=document.getElementById('con-sec');if(sel){sel.innerHTML='<option value="all">All sub-sectors</option>'+sectorList().map(s=>'<option value="'+s+'">'+s+'</option>').join('');sel.addEventListener('change',()=>{ST.conSec=sel.value;renderConsistency();});}})();
+(function(){const s=document.getElementById('con-minq');if(s)s.addEventListener('input',()=>{ST.conMinQ=+s.value;renderConsistency();});})();
+// ===== GRID TAB (sub-sector small multiples) =====
+function sparkSVG(ps){
+  const v=ps.val; if(!v||v.length<2)return '<div class="gspark-empty">no overlapping history</div>';
+  const W=300,H=64,ml=4,mr=6,mt=7,mb=7,pw=W-ml-mr,ph=H-mt-mb;
+  let lo=Math.min(0,...v),hi=Math.max(0,...v);const pad=(hi-lo)*0.12||0.02;lo-=pad;hi+=pad;const span=(hi-lo)||1;
+  const x=i=>ml+(v.length<=1?0:pw*i/(v.length-1)),y=d=>mt+ph*(hi-d)/span,zy=y(0);
+  const pts=v.map((d,i)=>x(i).toFixed(1)+','+y(d).toFixed(1)).join(' ');
+  const cur=v[v.length-1],col=cur<0?'#2E7D52':'#C0392B';
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%" preserveAspectRatio="none" class="gspark">'+
+    '<line x1="'+ml+'" y1="'+zy.toFixed(1)+'" x2="'+(W-mr)+'" y2="'+zy.toFixed(1)+'" stroke="var(--line2)" stroke-width="1" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>'+
+    '<polyline points="'+pts+'" fill="none" stroke="var(--series)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'+
+    '<circle cx="'+x(v.length-1).toFixed(1)+'" cy="'+y(cur).toFixed(1)+'" r="3" fill="'+col+'" vector-effect="non-scaling-stroke"/></svg>';
+}
+function gridPairs(sec){const out=[],seen=new Set();CLUSTERS.forEach(s=>{const mem=[...s].filter(t=>PE[t]&&SECOF[t]===sec);for(let i=0;i<mem.length;i++)for(let j=i+1;j<mem.length;j++){const k=mem[i]<mem[j]?mem[i]+'|'+mem[j]:mem[j]+'|'+mem[i];if(!seen.has(k)){seen.add(k);out.push([mem[i],mem[j]]);}}});return out;}
+function loadPairAgg(name,sec,mode){ST.A=name;ST.aSec=SECOF[name]||sec;ST.B='~'+mode+'~'+sec;ST.bSec=sec;initPairControls();switchTab('pairs');renderPairs();}
+function loadPairAA(secA,secB,mode){ST.A='~'+mode+'~'+secA;ST.aSec=secA;ST.B='~'+mode+'~'+secB;ST.bSec=secB;initPairControls();switchTab('pairs');renderPairs();}
+function gcardHTML(c,wl){const cls=c.s.cur>=0?'pos':'neg',ws=sliceMonths(c.full,ST.gridM);
+  return '<div class="gcard'+(c.hero?' ghero':'')+'" '+(c.hero?'data-hero="1"':'data-i="'+c.i+'"')+'><div class="gcard-top"><span class="gcard-ttl" title="'+esc(c.tip||c.ttl)+'">'+c.ttl+'</span><span class="gcard-cur '+cls+'">'+sgn(c.s.cur)+'</span></div>'+sparkSVG(ws)+'<div class="gcard-foot"><span>'+c.s.pile.toFixed(0)+'th pctile'+(c.hero?' · group vs group':'')+'</span><span>'+wl+' · n='+c.s.n+'</span></div></div>';}
+function renderGrid(){
+  const sec=ST.gridSec,modeRaw=ST.gridMode,wl=ST.gridM?(ST.gridM/12+'y'):'max';
+  const cmp=(ST.gridCmp&&ST.gridCmp!==sec)?ST.gridCmp:'';
+  // curated-pairs mode is intra-sector only; disable it while comparing across sub-sectors
+  const pb=document.querySelector('#grid-mode button[data-mode="pairs"]');
+  if(pb){pb.disabled=!!cmp;pb.style.opacity=cmp?'.4':'';pb.style.cursor=cmp?'not-allowed':'';}
+  if(cmp&&modeRaw==='pairs'){ST.gridMode='med';document.querySelectorAll('#grid-mode button').forEach(x=>x.setAttribute('aria-selected',x.dataset.mode==='med'));}
+  const wrap=document.getElementById('grid-wrap');
+  let hero='',cards=[];
+  if(cmp){
+    const mode=(ST.gridMode==='avg')?'avg':'med',lab=mode==='avg'?'avg':'median';
+    const benchB='~'+mode+'~'+cmp;
+    const hf=pairSeriesG('~'+mode+'~'+sec,benchB),hs=stat(sliceMonths(hf,ST.gridM).val);
+    if(hs)hero=gcardHTML({hero:true,ttl:sec+' '+lab+' ÷ '+cmp+' '+lab,tip:sec+' vs '+cmp+' (equal-weighted '+lab+'s)',full:hf,s:hs},wl);
+    cards=namesIn(sec).filter(t=>PE[t]).map(t=>{const full=pairSeriesG(t,benchB);return {a:t,b:benchB,agg:true,mode:mode,bsec:cmp,ttl:legRoot(t)+' ÷ '+cmp+' '+lab,tip:t+' / '+cmp+' '+lab,full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
+  } else if(modeRaw==='pairs'){
+    cards=gridPairs(sec).map(p=>{const a=p[0],b=p[1],full=pairSeriesG(a,b);return {a:a,b:b,agg:false,ttl:legRoot(a)+' ÷ '+legRoot(b),tip:a+' / '+b,full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
+  } else {
+    const mode=modeRaw,lab=mode==='avg'?'avg':'median',bench='~'+mode+'~'+sec;
+    cards=namesIn(sec).filter(t=>PE[t]).map(t=>{const full=pairSeriesG(t,bench);return {a:t,b:bench,agg:true,mode:mode,bsec:sec,ttl:legRoot(t)+' ÷ '+sec+' '+lab,tip:t+' / '+sec+' '+lab+' (ex-self)',full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
+  }
+  cards=cards.filter(c=>c.s);cards.sort((x,y)=>x.s.cur-y.s.cur);cards.forEach((c,i)=>c.i=i);
+  if(!hero&&!cards.length){wrap.innerHTML='<div class="gnone">No '+(modeRaw==='pairs'?'curated pairs':'names with P/E')+' in '+sec+'.</div>';}
+  else{wrap.innerHTML=hero+cards.map(c=>gcardHTML(c,wl)).join('');}
+  const h=wrap.querySelector('.ghero');if(h)h.onclick=()=>loadPairAA(sec,cmp,(ST.gridMode==='avg'?'avg':'med'));
+  wrap.querySelectorAll('.gcard[data-i]').forEach(el=>{const c=cards[+el.dataset.i];el.onclick=()=>{if(c.agg)loadPairAgg(c.a,c.bsec,c.mode);else loadPairX(c.a,c.b);};});
+  const cnt=document.getElementById('grid-count');if(cnt)cnt.textContent=(cmp?(cards.length+' names vs '+cmp):(modeRaw==='pairs'?cards.length+' pairs':cards.length+' names'));
+}
+(function(){
+  const sel=document.getElementById('grid-sec');
+  if(sel){sel.innerHTML=sectorList().map(s=>'<option value="'+s+'"'+(s===ST.gridSec?' selected':'')+'>'+s+'</option>').join('');sel.addEventListener('change',()=>{ST.gridSec=sel.value;renderGrid();});}
+  const cmp=document.getElementById('grid-cmp');
+  if(cmp){cmp.innerHTML='<option value="">— within sub-sector —</option>'+sectorList().map(s=>'<option value="'+s+'"'+(s===ST.gridCmp?' selected':'')+'>'+s+'</option>').join('');cmp.addEventListener('change',()=>{ST.gridCmp=cmp.value;renderGrid();});}
+  const sw=document.getElementById('grid-swap');
+  if(sw)sw.onclick=()=>{if(ST.gridCmp&&ST.gridCmp!==ST.gridSec){const a=ST.gridSec;ST.gridSec=ST.gridCmp;ST.gridCmp=a;if(sel)sel.value=ST.gridSec;if(cmp)cmp.value=ST.gridCmp;renderGrid();}};
+  const mm=document.getElementById('grid-mode');if(mm)mm.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(b.disabled)return;ST.gridMode=b.dataset.mode;mm.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderGrid();});
+  const rr=document.getElementById('grid-range');if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.gridM=+b.dataset.m;rr.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderGrid();});
+})();
+
+// ===== NAME P/E TAB (single-name forward P/E vs history) =====
+function peSeries(t){const a=PE[t];const idx=[],val=[];if(!a)return{idx,val};for(let i=0;i<N;i++){if(a[i]!=null){idx.push(i);val.push(a[i]);}}return{idx,val};}
+function fmtMon(d){const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[+d.slice(5,7)-1]+' '+d.slice(0,4);}
+function npNiceNum(x,round){const e=Math.floor(Math.log10(x));const f=x/Math.pow(10,e);let nf;if(round){nf=f<1.5?1:f<3?2:f<7?5:10;}else{nf=f<=1?1:f<=2?2:f<=5?5:10;}return nf*Math.pow(10,e);}
+function npTicks(lo,hi,n){if(!(hi>lo))return[lo];const range=npNiceNum(hi-lo,false);const step=npNiceNum(range/Math.max(1,n-1),true);const gmin=Math.ceil(lo/step)*step,gmax=Math.floor(hi/step)*step,ts=[];for(let v=gmin;v<=gmax+1e-9;v+=step)ts.push(+v.toFixed(6));return ts.length?ts:[lo];}
+function npRefreshNames(){const nn=namesIn(ST.npSec);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSel(document.getElementById('np-name'),nn,ST.npName);}
+function renderNamePE(){
+  const t=ST.npName;
+  const full=peSeries(t);const s=full.val.length?stat(full.val):null;
+  document.getElementById('np-title').innerHTML=t+' <span>\u2014 forward P/E vs history</span>';
+  if(!s){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
+  const mean=s.mean,sd=s.sd,up=mean+sd,dn=mean-sd,fx=v=>v.toFixed(1)+'x';
+  const cards=[
+    {k:'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
+    {k:'Average',v:fx(mean)},
+    {k:'+1\u03c3',v:fx(up)},
+    {k:'\u22121\u03c3',v:fx(dn)},
+    {k:'Percentile',v:s.pile.toFixed(0)+'<small>th</small>'},
+    {k:'Z-score',v:(s.z>=0?'+':'\u2212')+Math.abs(s.z).toFixed(2),cls:s.z>=0?'pos':'neg'},
+  ];
+  document.getElementById('np-stats').innerHTML=cards.map(c=>'<div class="stat"><div class="k">'+c.k+'</div><div class="v num '+(c.cls||'')+'">'+c.v+'</div></div>').join('');
+  const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
+  const W=900,H=380,ml=46,mr=62,mt=16,mb=26,pw=W-ml-mr,ph=H-mt-mb;
+  let lo=Math.min(dn,...val),hi=Math.max(up,...val);const pad=(hi-lo)*0.08||1;lo-=pad;hi+=pad;const span=(hi-lo)||1;
+  const xi=i=>ml+(L<=1?0:pw*i/(L-1)),y=v=>mt+ph*(hi-v)/span;
+  const x0=ml,x1=ml+pw,yB=mt+ph;
+  const tl=v=>(Math.abs(v-Math.round(v))<1e-9?String(Math.round(v)):v.toFixed(1))+'x';
+  const ticks=npTicks(lo,hi,8);
+  let g='';
+  // shaded +/-1 sigma band
+  const yUp=y(up),yMean=y(mean),yDn=y(dn);
+  g+='<rect x="'+x0+'" y="'+yUp.toFixed(1)+'" width="'+pw+'" height="'+Math.max(0,yDn-yUp).toFixed(1)+'" fill="rgba(21,105,122,.06)"/>';
+  // horizontal gridlines + y-axis multiple labels + tick marks
+  ticks.forEach(tv=>{const yy=y(tv);g+='<line x1="'+x0+'" y1="'+yy.toFixed(1)+'" x2="'+x1+'" y2="'+yy.toFixed(1)+'" stroke="var(--line)" stroke-width="1" vector-effect="non-scaling-stroke"/>';g+='<line x1="'+(x0-4)+'" y1="'+yy.toFixed(1)+'" x2="'+x0+'" y2="'+yy.toFixed(1)+'" stroke="var(--line2)" stroke-width="1" vector-effect="non-scaling-stroke"/>';g+='<text x="'+(x0-8)+'" y="'+(yy+3).toFixed(1)+'" text-anchor="end" font-size="10" fill="var(--muted)">'+tl(tv)+'</text>';});
+  // average and +/-1 sigma reference lines
+  g+='<line x1="'+x0+'" y1="'+yUp.toFixed(1)+'" x2="'+x1+'" y2="'+yUp.toFixed(1)+'" stroke="var(--faint)" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>';
+  g+='<line x1="'+x0+'" y1="'+yDn.toFixed(1)+'" x2="'+x1+'" y2="'+yDn.toFixed(1)+'" stroke="var(--faint)" stroke-width="1" stroke-dasharray="3 4" vector-effect="non-scaling-stroke"/>';
+  g+='<line x1="'+x0+'" y1="'+yMean.toFixed(1)+'" x2="'+x1+'" y2="'+yMean.toFixed(1)+'" stroke="var(--avg)" stroke-width="1.3" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>';
+  const gx=x1+6;
+  g+='<text x="'+gx+'" y="'+(yUp+3).toFixed(1)+'" font-size="10" fill="var(--faint)">+1\u03c3 '+fx(up)+'</text>';
+  g+='<text x="'+gx+'" y="'+(yMean+3).toFixed(1)+'" font-size="10" fill="var(--avg)">avg '+fx(mean)+'</text>';
+  g+='<text x="'+gx+'" y="'+(yDn+3).toFixed(1)+'" font-size="10" fill="var(--faint)">\u22121\u03c3 '+fx(dn)+'</text>';
+  // x-axis year labels + ticks
+  let py=null;for(let i=0;i<L;i++){const yr=D[idx[i]].slice(0,4);if(yr!==py){const X=xi(i);g+='<line x1="'+X.toFixed(1)+'" y1="'+yB+'" x2="'+X.toFixed(1)+'" y2="'+(yB+4)+'" stroke="var(--line2)" stroke-width="1" vector-effect="non-scaling-stroke"/>';g+='<text x="'+X.toFixed(1)+'" y="'+(H-8)+'" text-anchor="middle" font-size="9.5" fill="var(--muted)">'+yr+'</text>';py=yr;}}
+  // P/E line
+  const pts=val.map((d,i)=>xi(i).toFixed(1)+','+y(d).toFixed(1)).join(' ');
+  g+='<polyline points="'+pts+'" fill="none" stroke="var(--series)" stroke-width="1.7" vector-effect="non-scaling-stroke"/>';
+  const cc=val[L-1]>=mean?'#C0392B':'#2E7D52';
+  g+='<circle cx="'+xi(L-1).toFixed(1)+'" cy="'+y(val[L-1]).toFixed(1)+'" r="3.4" fill="'+cc+'" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+  // axis frame (drawn on top): left y-axis + bottom x-axis
+  g+='<line x1="'+x0+'" y1="'+mt+'" x2="'+x0+'" y2="'+yB+'" stroke="var(--ink2)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>';
+  g+='<line x1="'+x0+'" y1="'+yB+'" x2="'+x1+'" y2="'+yB+'" stroke="var(--ink2)" stroke-width="1.2" vector-effect="non-scaling-stroke"/>';
+  // hover layer
+  g+='<line id="np-cross" x1="0" y1="'+mt+'" x2="0" y2="'+yB+'" stroke="var(--ink2)" stroke-width="1" stroke-dasharray="2 2" vector-effect="non-scaling-stroke" style="display:none"/>';
+  g+='<circle id="np-dot" cx="0" cy="0" r="3.4" fill="var(--series)" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" style="display:none"/>';
+  g+='<rect id="np-ov" x="'+x0+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" fill="transparent" style="cursor:crosshair"/>';
+  document.getElementById('np-chart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block;width:100%;height:100%">'+g+'</svg>';
+  const first=fmtMon(D[full.idx[0]]);
+  document.getElementById('np-note').innerHTML=t+' trades at <b>'+fx(s.cur)+'</b>, '+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' its full-history average of <b>'+fx(mean)+'</b> (since '+first+') \u2014 the '+s.pile.toFixed(0)+'th percentile of its own range. It has spanned '+fx(s.min)+' to '+fx(s.max)+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.'+(ST.npM?(' Showing the last '+(ST.npM/12)+' years; the average and \u00b11\u03c3 use the full available history.'):'');
+  const svg=document.getElementById('np-chart').querySelector('svg');
+  const ov=svg.querySelector('#np-ov'),cross=svg.querySelector('#np-cross'),dot=svg.querySelector('#np-dot'),read=document.getElementById('np-read');
+  ov.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();let frac=((ev.clientX-r.left)/r.width*W-ml)/pw;frac=Math.max(0,Math.min(1,frac));const i=Math.round(frac*(L-1));const X=xi(i),Y=y(val[i]);cross.setAttribute('x1',X);cross.setAttribute('x2',X);cross.style.display='';dot.setAttribute('cx',X);dot.setAttribute('cy',Y);dot.style.display='';read.style.display='block';read.textContent=fmtMon(D[idx[i]])+' \u00b7 '+val[i].toFixed(1)+'x';});
+  ov.addEventListener('mouseleave',()=>{cross.style.display='none';dot.style.display='none';read.style.display='none';});
+}
+(function(){
+  const ssel=document.getElementById('np-sector');
+  if(ssel){fillSel(ssel,['All coverage'].concat(sectorList()),ST.npSec);ssel.onchange=()=>{ST.npSec=ssel.value;npRefreshNames();renderNamePE();};}
+  const nsel=document.getElementById('np-name');
+  if(nsel){npRefreshNames();nsel.onchange=()=>{ST.npName=nsel.value;renderNamePE();};}
+  const rr=document.getElementById('np-range');if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.npM=+b.dataset.m;rr.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderNamePE();});
+})();
+
+// ===== BACKTEST ENGINE (validated vs Python reference) =====
+/* ===================== PORTABLE BACKTEST CORE (copied verbatim into dashboard) ===================== */
+function bmean(a){let s=0;for(const x of a)s+=x;return s/a.length;}
+function bstd(a){const m=bmean(a);let s=0;for(const x of a)s+=(x-m)*(x-m);return Math.sqrt(s/a.length);} // population sd (matches Python pstdev)
+function bspear(xs,ys){const n=xs.length;if(n<4)return null;
+  function rank(v){const idx=v.map((_,i)=>i).sort((i,j)=>v[i]-v[j]);const r=new Array(n);let i=0;
+    while(i<n){let j=i;while(j+1<n&&v[idx[j+1]]===v[idx[i]])j++;const avg=(i+j)/2+1;for(let k=i;k<=j;k++)r[idx[k]]=avg;i=j+1;}return r;}
+  const rx=rank(xs),ry=rank(ys),mx=bmean(rx),my=bmean(ry);let num=0,dx=0,dy=0;
+  for(let i=0;i<n;i++){num+=(rx[i]-mx)*(ry[i]-my);dx+=(rx[i]-mx)**2;dy+=(ry[i]-my)**2;}
+  const den=Math.sqrt(dx*dy);return den>0?num/den:null;}
+let BTC=null;
+function btPrep(){
+  if(BTC)return BTC;
+  const ymf=s=>s.slice(0,7);
+  const PEM={},monthsSet={};
+  for(const t in PE){const a=PE[t],last={};for(let i=0;i<N;i++){const v=a[i];if(v!=null&&v>0){const k=ymf(D[i]);last[k]=v;monthsSet[k]=1;}}PEM[t]=last;}
+  const PEMONTHS=Object.keys(monthsSet).sort();
+  const XM=BT.XMONTHS,PX=BT.PX;
+  function ezSingle(t,m){const pm=PEM[t];if(!pm||!(m in pm))return null;const arr=[];for(const mm of PEMONTHS){if(mm>m)break;if(mm in pm)arr.push(pm[mm]);}if(arr.length<18)return null;const mu=bmean(arr),sd=bstd(arr);if(sd<=0)return null;return (pm[m]-mu)/sd;}
+  function ezPair(a,b,m){const pa=PEM[a],pb=PEM[b];if(!pa||!pb||!(m in pa)||!(m in pb))return null;const arr=[];for(const mm of PEMONTHS){if(mm>m)break;if(mm in pa&&mm in pb)arr.push(Math.log(pa[mm]/pb[mm]));}if(arr.length<18)return null;const cur=Math.log(pa[m]/pb[m]),mu=bmean(arr),sd=bstd(arr);if(sd<=0)return null;return (cur-mu)/sd;}
+  function pret(t,mi,h){const a=PX[t];if(!a)return null;if(mi+h>=XM.length)return null;const p0=a[mi],p1=a[mi+h];if(p0==null||p1==null||p0<=0)return null;return p1/p0-1;}
+  const seen={},pairs=[];
+  CLUSTERS.forEach(s=>{const mem=[...s].filter(x=>PX[x]&&PEM[x]&&Object.keys(PEM[x]).length>=18).sort();
+    for(let i=0;i<mem.length;i++)for(let j=i+1;j<mem.length;j++){const k=mem[i]+'|'+mem[j];if(!seen[k]){seen[k]=1;pairs.push([mem[i],mem[j]]);}}});
+  const H=[1,3,6,12];
+  function trail(ser,m){const s=[];for(const e of ser){if(e[0]>m)break;s.push(e[1]);}const w=s.slice(-12),n=w.length;if(n<6)return null;const mx=(n-1)/2;let my=0;for(const y of w)my+=y;my/=n;let num=0,dx=0,dy=0;for(let i=0;i<n;i++){num+=(i-mx)*(w[i]-my);dx+=(i-mx)*(i-mx);dy+=(w[i]-my)*(w[i]-my);}if(dx<=0||dy<=0)return 0;return num/Math.sqrt(dx*dy);}
+  const pairObs={1:[],3:[],6:[],12:[]},pmPair={1:{},3:{},6:{},12:{}},pairZnow={},pairGroup={};
+  for(const [a,b] of pairs){let lastz=null;const key=a+'|'+b;
+    const ser=[];for(const mm of PEMONTHS){if(mm in PEM[a]&&mm in PEM[b])ser.push([mm,Math.log(PEM[a][mm]/PEM[b][mm])]);}
+    for(let mi=0;mi<XM.length;mi++){const z=ezPair(a,b,XM[mi]);if(z==null)continue;lastz=z;const rho=trail(ser,XM[mi]);
+      for(const h of H){const ra=pret(a,mi,h),rb=pret(b,mi,h);if(ra==null||rb==null)continue;const ls=ra-rb;
+        pairObs[h].push({z,ls,a,b,rho});(pmPair[h][mi]=pmPair[h][mi]||[]).push({s:-z,ls,pk:key});
+        (pairGroup[h]=pairGroup[h]||{});(pairGroup[h][key]=pairGroup[h][key]||[]).push({z,ls,rho});}}
+    pairZnow[key]=lastz;}
+  const snObs={1:[],3:[],6:[],12:[]},pmSN={1:{},3:{},6:{},12:{}};
+  for(const h of H){for(let mi=0;mi<XM.length;mi++){const m=XM[mi];const rows=[];
+      for(const t in PX){if(!(t in SECOF))continue;const z=ezSingle(t,m),r=pret(t,mi,h);if(z==null||r==null)continue;rows.push([t,SECOF[t],z,r]);}
+      if(rows.length<6)continue;const ss={},sc={};rows.forEach(r=>{ss[r[1]]=(ss[r[1]]||0)+r[3];sc[r[1]]=(sc[r[1]]||0)+1;});
+      rows.forEach(([t,s,z,r])=>{const rr=r-ss[s]/sc[s];snObs[h].push({z,rr,t});(pmSN[h][mi]=pmSN[h][mi]||[]).push({s:-z,rr});});}}
+  const portSeries=[];for(let mi=0;mi<XM.length-1;mi++){const lst=pmPair[1][mi];if(!lst||lst.length<5)continue;
+    const sig=lst.map(o=>Math.max(-3,Math.min(3,o.s)));const mu=bmean(sig);const w={};let g=0;
+    lst.forEach((o,k)=>{const wi=sig[k]-mu;w[o.pk]=wi;g+=Math.abs(wi);});if(g<=0)continue;for(const k in w)w[k]/=g;
+    let gret=0;lst.forEach(o=>{gret+=w[o.pk]*o.ls;});portSeries.push({mon:XM[mi+1],w,gret});}
+  const turn=[],shortg=[];for(let i=0;i<portSeries.length;i++){const w=portSeries[i].w,pw=i>0?portSeries[i-1].w:{};const ks=new Set([...Object.keys(w),...Object.keys(pw)]);let t=0;ks.forEach(k=>{t+=Math.abs((w[k]||0)-(pw[k]||0));});turn.push(t);let sh=0;for(const k in w)if(w[k]<0)sh-=w[k];shortg.push(sh);}
+  const pr=portSeries.map(p=>p.gret);const pmu=pr.length?bmean(pr):NaN,psd=pr.length?bstd(pr):NaN,sharpe=psd>0?pmu/psd*Math.sqrt(12):NaN;
+  BTC={PEM,PEMONTHS,XM,PX,pairs,ezSingle,ezPair,pret,pairObs,pmPair,snObs,pmSN,pairZnow,pairGroup,portSeries,turn,shortg,
+       port:{sharpe,mean:pmu,vol:psd,hit:pr.length?100*pr.filter(x=>x>0).length/pr.length:NaN,n:pr.length},H};
+  return BTC;}
+function meanIC(pm,key,minn){const ics=[];for(const mi in pm){const lst=pm[mi];if(lst.length<minn)continue;const ic=bspear(lst.map(o=>o.s),lst.map(o=>o[key]));if(ic!=null)ics.push(ic);}
+  if(!ics.length)return null;const m=bmean(ics),sd=bstd(ics);return {ic:m,t:sd>0?m/(sd/Math.sqrt(ics.length)):NaN,pos:100*ics.filter(x=>x>0).length/ics.length,nm:ics.length};}
+/* =================== END PORTABLE CORE =================== */
+function btKeep(o){ if(ST.btFilt==='all')return true; const tc=(o.rho!=null)&&(o.z*o.rho>0)&&(Math.abs(o.rho)>=0.5); return ST.btFilt==='tc'?tc:!tc; }
+function btCard(c){return `<div class="stat"><div class="k">${c.k}</div><div class="v"${c.c?` style="color:${c.c}"`:''}>${c.v}</div><div class="k" style="margin:5px 0 0;text-transform:none;letter-spacing:0;font-weight:500;">${c.s}</div></div>`;}
+function drawDecileBars(vals,zmeans){
+  const cv2=document.getElementById('bt-decile'),host=cv2.parentElement,c2=cv2.getContext('2d'),dpr=window.devicePixelRatio||1;
+  const W=host.clientWidth,H=host.clientHeight;cv2.width=W*dpr;cv2.height=H*dpr;c2.setTransform(dpr,0,0,dpr,0,0);c2.clearRect(0,0,W,H);
+  const padL=48,padR=12,padT=12,padB=24,plotW=W-padL-padR,plotH=H-padT-padB;
+  let lo=Math.min(0,...vals),hi=Math.max(0,...vals);const pd=(hi-lo)*0.12||0.01;lo-=pd;hi+=pd;
+  const Y=v=>padT+(1-(v-lo)/(hi-lo))*plotH;
+  const rng=hi-lo,rs=rng/5,mag=Math.pow(10,Math.floor(Math.log10(rs))),nm=rs/mag,step=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag,t0=Math.ceil(lo/step)*step;
+  c2.font='11px '+getComputedStyle(document.body).fontFamily;c2.textAlign='right';c2.textBaseline='middle';
+  for(let t=t0;t<=hi+1e-9;t+=step){const y=Y(t),zero=Math.abs(t)<1e-9;c2.strokeStyle=zero?'#C7D0D6':'#EEF2F4';c2.lineWidth=zero?1.4:1;c2.beginPath();c2.moveTo(padL,y);c2.lineTo(W-padR,y);c2.stroke();c2.fillStyle=zero?'#5B6B76':'#9AA8B2';c2.fillText((t>0?'+':t<0?'\u2212':'')+Math.abs(t*100).toFixed(0)+'%',padL-7,y);}
+  const bw=plotW/vals.length,y0=Y(0);c2.textAlign='center';c2.textBaseline='top';
+  for(let i=0;i<vals.length;i++){const x=padL+i*bw+bw*0.17,w=bw*0.66,y=Y(vals[i]);c2.fillStyle=(zmeans[i]<-(ST.btThr))?'#15697A':'#AEB9C2';c2.fillRect(x,Math.min(y,y0),w,Math.max(1,Math.abs(y-y0)));c2.fillStyle='#9AA8B2';c2.fillText(String(i+1),x+w/2,padT+plotH+6);}
+}
+function drawEquity(mon,eg,en){
+  const cv2=document.getElementById('bt-equity'),host=cv2.parentElement,c2=cv2.getContext('2d'),dpr=window.devicePixelRatio||1;
+  const W=host.clientWidth,H=host.clientHeight;cv2.width=W*dpr;cv2.height=H*dpr;c2.setTransform(dpr,0,0,dpr,0,0);c2.clearRect(0,0,W,H);
+  const padL=46,padR=12,padT=12,padB=24,plotW=W-padL-padR,plotH=H-padT-padB,n=eg.length;
+  let lo=Math.min(...eg,...en),hi=Math.max(...eg,...en);const pd=(hi-lo)*0.08||0.02;lo-=pd;hi+=pd;
+  const X=i=>padL+(n<=1?0:i/(n-1)*plotW),Y=v=>padT+(1-(v-lo)/(hi-lo))*plotH;
+  const rng=hi-lo,rs=rng/4,mag=Math.pow(10,Math.floor(Math.log10(rs))),nm=rs/mag,step=(nm<1.5?1:nm<3?2:nm<7?5:10)*mag,t0=Math.ceil(lo/step)*step;
+  c2.font='11px '+getComputedStyle(document.body).fontFamily;c2.textAlign='right';c2.textBaseline='middle';
+  for(let t=t0;t<=hi+1e-9;t+=step){const y=Y(t),at1=Math.abs(t-1)<1e-9;c2.strokeStyle=at1?'#C7D0D6':'#EEF2F4';c2.lineWidth=at1?1.4:1;c2.beginPath();c2.moveTo(padL,y);c2.lineTo(W-padR,y);c2.stroke();c2.fillStyle='#9AA8B2';c2.fillText(((t-1)>=0?'+':'\u2212')+Math.abs((t-1)*100).toFixed(0)+'%',padL-7,y);}
+  c2.textAlign='center';c2.textBaseline='top';const want=Math.min(8,Math.max(3,Math.floor(plotW/90))),lab=Math.max(1,Math.floor(n/want));
+  for(let i=0;i<n;i+=lab){c2.fillStyle='#9AA8B2';c2.fillText(mon[i].slice(2),X(i),padT+plotH+6);}
+  const line=(arr,color)=>{c2.strokeStyle=color;c2.lineWidth=1.8;c2.lineJoin='round';c2.beginPath();for(let i=0;i<arr.length;i++){const x=X(i),y=Y(arr[i]);i?c2.lineTo(x,y):c2.moveTo(x,y);}c2.stroke();};
+  line(eg,'#15697A');line(en,'#E2733A');
+}
+function renderBtPairTable(C,H,THR){
+  const grp=C.pairGroup[H]||{},rows=[];
+  for(const key in grp){const obs=grp[key].filter(btKeep),a=key.split('|')[0],b=key.split('|')[1];
+    const ic=obs.length>=12?bspear(obs.map(o=>-o.z),obs.map(o=>o.ls)):null;
+    const tr=obs.filter(o=>Math.abs(o.z)>THR),trm=tr.length?bmean(tr.map(o=>-(o.z>0?1:-1)*o.ls)):null;
+    rows.push({a,b,ic,z:C.pairZnow[key],tr:trm,n:obs.length});}
+  const S=ST.btSort,kf={p:r=>r.a+r.b,ic:r=>r.ic==null?-9:r.ic,z:r=>r.z==null?0:r.z,tr:r=>r.tr==null?-9:r.tr,n:r=>r.n};
+  rows.sort((x,y)=>{const kx=kf[S.k](x),ky=kf[S.k](y);return S.k==='p'?S.dir*((kx<ky)?-1:(kx>ky)?1:0):S.dir*(kx-ky);});
+  const cols=[['p','Pair'],['ic','IC ('+H+'m)'],['z','z now'],['tr','Trade ret'],['n','n']];
+  const thead=document.querySelector('#bt-pairtbl thead'),tb=document.querySelector('#bt-pairtbl tbody');
+  thead.innerHTML='<tr>'+cols.map(c=>`<th class="${S.k===c[0]?'sorted':''}" data-k="${c[0]}">${c[1]}${S.k===c[0]?(S.dir<0?' \u2193':' \u2191'):''}</th>`).join('')+'</tr>';
+  const fz=z=>z==null?'\u2014':(z>=0?'+':'\u2212')+Math.abs(z).toFixed(1)+'\u03c3';
+  const fic=ic=>ic==null?'<span style="color:var(--faint)">\u2014</span>':`<span style="color:${ic>0?'#2E7D52':'#C0392B'};font-weight:600;">${(ic>=0?'+':'\u2212')+Math.abs(ic).toFixed(2)}</span>`;
+  const ftr=tr=>tr==null?'<span style="color:var(--faint)">\u2014</span>':`<span style="color:${tr>0?'#2E7D52':'#C0392B'};">${sgn(tr)}</span>`;
+  tb.innerHTML=rows.map(r=>`<tr data-a="${r.a}" data-b="${r.b}"><td>${r.a} \u00f7 ${r.b}</td><td>${fic(r.ic)}</td><td class="mut">${fz(r.z)}</td><td>${ftr(r.tr)}</td><td class="mut">${r.n}</td></tr>`).join('');
+  tb.querySelectorAll('tr[data-a]').forEach(tr=>tr.onclick=()=>loadPair(tr.dataset.a,tr.dataset.b,SECOF[tr.dataset.a]));
+  thead.querySelectorAll('th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(ST.btSort.k===k)ST.btSort.dir*=-1;else ST.btSort={k,dir:(k==='p'?1:-1)};renderBtPairTable(C,H,THR);});
+}
+function renderPnl(C){
+  const TX=ST.btCost,BOR=ST.btBorrow;
+  document.getElementById('bt-cost-v').textContent=TX+' bps';
+  document.getElementById('bt-borrow-v').textContent=BOR+' bps';
+  const ps=C.portSeries,turn=C.turn,sh=C.shortg,mon=ps.map(p=>p.mon);
+  const gross=ps.map(p=>p.gret),net=gross.map((g,i)=>g-TX/1e4*turn[i]-BOR/1e4/12*sh[i]);
+  const shp=a=>{const m=bmean(a),s=bstd(a);return {sh:s>0?m/s*Math.sqrt(12):NaN,m};};
+  const G=shp(gross),Nn=shp(net);
+  let cg=1,cn=1;const eg=[],en=[];for(let i=0;i<gross.length;i++){cg*=(1+gross[i]);cn*=(1+net[i]);eg.push(cg);en.push(cn);}
+  drawEquity(mon,eg,en);
+  document.getElementById('bt-pnl-cards').innerHTML=[
+    {k:'Gross Sharpe',v:G.sh.toFixed(2),c:'',s:'annualised, 1m rebal'},
+    {k:'Net Sharpe',v:Nn.sh.toFixed(2),c:Nn.sh>0?'#2E7D52':'#C0392B',s:`after costs`},
+    {k:'Net return',v:sgn(Nn.m),c:Nn.m>0?'#2E7D52':'#C0392B',s:'per month'},
+    {k:'Avg turnover',v:Math.round(bmean(turn)*100)+'%',c:'',s:'of gross / month'}
+  ].map(btCard).join('');
+  document.getElementById('bt-pnl-note').innerHTML='Dollar-neutral (gross 1.0, \u2248'+Math.round(bmean(sh)*100)+'% short), z-weighted across all '+C.pairs.length+' pairs, rebalanced monthly. Costs = transaction bps \u00d7 monthly turnover + borrow bps p.a. on the short leg. Gross Sharpe <b>'+G.sh.toFixed(2)+'</b> \u2192 net <b>'+Nn.sh.toFixed(2)+'</b> at the current assumptions. Excludes slippage on less-liquid names and financing on the long leg; a single-regime (2023\u201326) result.';
+}
+function renderBacktest(){
+  const C=btPrep(),H=ST.btH,THR=ST.btThr;
+  document.getElementById('bt-h-lab').textContent=H+'-month';
+  document.getElementById('bt-thr-v').textContent=THR.toFixed(1)+'\u03c3';
+  document.querySelectorAll('#bt-h button').forEach(b=>b.setAttribute('aria-selected',(+b.dataset.h===H)));
+  document.querySelectorAll('#bt-filt button').forEach(b=>b.setAttribute('aria-selected',(b.dataset.f===ST.btFilt)));
+  document.getElementById('bt-intro').innerHTML='Signals are <b>expanding-window z-scores</b> of forward P/E \u2014 for a pair, of ln(P/E<sub>A</sub>/P/E<sub>B</sub>) \u2014 using only data available at each date (no look-ahead, \u226518-month baseline). A positive signal means the leg is <b>cheap vs its own history</b>; the trade is long the cheap leg / short the rich leg, in local currency. Universe <b>70 names \u00b7 109 pairs</b>, monthly dividend-adjusted prices Jun-2022\u2192Jun-2026. A dollar-neutral, z-weighted pair book rebalanced monthly returned an annualised Sharpe of <b>'+C.port.sharpe.toFixed(2)+'</b> gross; <b>89%</b> of pairs mean-revert.';
+  const o=C.pairObs[H].filter(btKeep),disc=o.filter(x=>x.z<-THR),prem=o.filter(x=>x.z>THR);
+  const dm=disc.length?bmean(disc.map(x=>x.ls)):null,dh=disc.length?100*disc.filter(x=>x.ls>0).length/disc.length:null,pm=prem.length?bmean(prem.map(x=>x.ls)):null;
+  const col=v=>v==null?'':(v>0?'#2E7D52':'#C0392B');
+  document.getElementById('bt-cards').innerHTML=[
+    {k:`Long cheap / short rich \u00b7 z&lt;\u2212${THR.toFixed(1)}`,v:dm==null?'\u2014':sgn(dm),c:col(dm),s:`avg fwd ${H}m`},
+    {k:'Hit rate',v:dh==null?'\u2014':Math.round(dh)+'%',c:'',s:'long-short &gt; 0'},
+    {k:`Fade premium \u00b7 z&gt;+${THR.toFixed(1)}`,v:pm==null?'\u2014':sgn(pm),c:col(pm),s:`avg fwd ${H}m`},
+    {k:'Discount entries',v:disc.length.toLocaleString(),c:'',s:'pair-months at signal'}
+  ].map(btCard).join('');
+  const so=o.slice().sort((a,b)=>a.z-b.z),n=so.length,dv=[],dz=[];
+  for(let d=0;d<10;d++){const lo=Math.floor(d*n/10),hi=Math.floor((d+1)*n/10),ch=so.slice(lo,hi);dv.push(ch.length?bmean(ch.map(c=>c.ls)):0);dz.push(ch.length?bmean(ch.map(c=>c.z)):0);}
+  drawDecileBars(dv,dz);
+  const icCell=(r,h)=>{const sel=h===H,ic=r?r.ic:null,t=r?r.t:null,cc=ic==null?'#9AA8B2':(ic>0?'#2E7D52':'#C0392B');return `<td style="text-align:center;padding:7px 10px;${sel?'background:var(--panel2);':''}"><span style="font-weight:600;color:${cc};">${ic==null?'\u2014':(ic>=0?'+':'\u2212')+Math.abs(ic).toFixed(3)}</span><div style="font-size:10px;color:var(--faint);">t ${t==null?'\u2014':t.toFixed(1)}</div></td>`;};
+  const icP={},icS={};for(const h of [1,3,6,12]){icP[h]=meanIC(C.pmPair[h],'ls',5);icS[h]=meanIC(C.pmSN[h],'rr',6);}
+  document.getElementById('bt-ic').innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums;"><tr><th style="text-align:left;padding:6px 10px;font-size:10px;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);">Signal \\ horizon</th>${[1,3,6,12].map(h=>`<th style="text-align:center;padding:6px 10px;font-size:11px;color:${h===H?'var(--accent)':'var(--muted)'};">${h}M</th>`).join('')}</tr><tr><td style="padding:7px 10px;color:var(--ink);">Pair relative-value</td>${[1,3,6,12].map(h=>icCell(icP[h],h)).join('')}</tr><tr><td style="padding:7px 10px;color:var(--ink);">Single-name vs own history <span style="color:var(--faint);">(sector-adj)</span></td>${[1,3,6,12].map(h=>icCell(icS[h],h)).join('')}</tr></table>`;
+  renderBtPairTable(C,H,THR);
+  const dAll=C.pairObs[H].filter(x=>x.z<-THR);
+  const tc=dAll.filter(x=>x.rho!=null&&x.rho<=-0.5),rb=dAll.filter(x=>!(x.rho!=null&&x.rho<=-0.5));
+  const mm=v=>v.length?bmean(v.map(x=>x.ls)):null,hh=v=>v.length?Math.round(100*v.filter(x=>x.ls>0).length/v.length):null;
+  document.getElementById('bt-note').innerHTML='Counter-intuitively, the discounts that <b>fail</b> to revert are the <b>range-bound</b> ones \u2014 chronically cheap, flat spread (the real value traps) \u2014 not the trending ones. At '+H+'m, trend-confirmed discounts (a recent directional move into the extreme) returned <b>'+(mm(tc)==null?'\u2014':sgn(mm(tc)))+'</b> (hit '+(hh(tc)??'\u2014')+'%) vs <b>'+(mm(rb)==null?'\u2014':sgn(mm(rb)))+'</b> (hit '+(hh(rb)??'\u2014')+'%) for range-bound. Use the trend filter to screen the traps out. Caveats: ~3-year window (one regime); overlapping monthly returns inflate t-stats; gross of transaction & borrow costs (see P&L below); cross-currency pairs assumed FX-hedged; 2025\u201326 IPOs excluded.';
+  renderPnl(C);
+}
+document.getElementById('bt-h').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.btH=+b.dataset.h;renderBacktest();});
+document.getElementById('bt-filt').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.btFilt=b.dataset.f;renderBacktest();});
+(function(){const t=document.getElementById('bt-thr');t.addEventListener('input',()=>{ST.btThr=+t.value;renderBacktest();});})();
+(function(){const c=document.getElementById('bt-cost');c.addEventListener('input',()=>{ST.btCost=+c.value;renderPnl(btPrep());});})();
+(function(){const c=document.getElementById('bt-borrow');c.addEventListener('input',()=>{ST.btBorrow=+c.value;renderPnl(btPrep());});})();
+
+initPairControls();
+renderPairs();
+</script>
+</body>
+</html>
