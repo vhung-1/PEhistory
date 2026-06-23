@@ -1,0 +1,70 @@
+name: Build, gate & deploy dashboard
+
+# Rebuilds Relative_PE_Dashboard.html from source, runs the CLAUDE.md §4
+# validation gate, and only then deploys to GitHub Pages. A build that fails
+# either check never reaches the live site.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build (5-token substitution)
+        run: python build.py
+
+      - name: Gate (a) — JS syntax (node --check)
+        run: |
+          set -euo pipefail
+          python3 -c "import re;h=open('Relative_PE_Dashboard.html',encoding='utf-8').read();open('app.js','w',encoding='utf-8').write(max(re.findall(r'<script>([\s\S]*?)</script>',h),key=len))"
+          node --check app.js
+          rm -f app.js
+
+      - name: Gate (b) — backtest 39/39
+        run: |
+          set -euo pipefail
+          node bt_verify.js | tee gate.out
+          grep -q "ALL CHECKS PASSED (39 passed)" gate.out
+
+      - name: Stage site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp index.html Relative_PE_Dashboard.html _site/
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@v4
+        id: deployment

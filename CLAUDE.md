@@ -225,13 +225,15 @@ Excluded from the P/E panel: `RELY LN`, `SQ SW`.
 
 ## 11. Data licensing & hosting
 
-The HTML **embeds licensed Bloomberg-sourced forward P/E and S&P-Global-derived adjusted prices** (coverage + software). **GitHub Pages always serves a publicly viewable site** — even from a private repo, anyone with the URL can read the page source and the embedded data, which likely breaches those licences.
-- **Do not use a public repo / public Pages site.**
+> **Status for this deployment:** the data owner has **confirmed distribution rights** for the embedded data, so the dashboard **is published publicly** — public repo + **GitHub Pages** at <https://vhung-1.github.io/PEhistory/>, built and gated by `.github/workflows/pages.yml` (the §4 gate must pass before any deploy). The guidance below is the **default for when distribution is _not_ authorized**.
+
+The HTML **embeds Bloomberg-sourced forward P/E and S&P-Global-derived adjusted prices** (coverage + software). **GitHub Pages always serves a publicly viewable site** — anyone with the URL can read the page source and the embedded data. **Only publish publicly with the data owner's distribution permission** (granted for this deployment).
+- Without that permission: **do not use a public repo / public Pages site.**
 - Private-repo Pages needs a **paid plan**, and the *site is still public* — pair it with access control.
 - For a genuinely private site: host on **Cloudflare Pages / Netlify / Vercel** behind **Cloudflare Access / Netlify Identity / a Vercel password** (these also allow a private source repo on free tiers).
-- Operational limits: site ≤ ~1 GB, soft ~100 GB/mo bandwidth, ~10 builds/hr; Pages' terms forbid primarily-commercial/SaaS use. Treat as an **internal, access-controlled tool**.
+- Operational limits: site ≤ ~1 GB, soft ~100 GB/mo bandwidth, ~10 builds/hr; Pages' terms forbid primarily-commercial/SaaS use.
 
-If you wire CI: on push to `main`, set up Python 3 + Node, run `python build.py`, run the §4 gate (fail the job if either check fails), then deploy. Never deploy a build that didn't pass the gate.
+**CI (live):** `.github/workflows/pages.yml` runs on push to `main` — sets up Python 3 + Node, runs `python build.py`, runs the §4 gate (JS syntax + `bt_verify.js` 39/39; the job fails if either fails), then deploys to Pages. A build that didn't pass the gate never deploys. Pages **Source** must be set to **GitHub Actions** (repo Settings → Pages).
 
 ---
 
