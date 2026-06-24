@@ -36,6 +36,20 @@ Open `Relative_PE_Dashboard.html` in a browser to view (no server needed).
 ## Tokens (build.py order)
 `__QDATA__` `__BTDATA__` `__DATA__` `__DPX__` `__SWDATA__`  (long *DATA tokens before `__DATA__`).
 
+## Data API (static JSON)
+The panels are published as static JSON on GitHub Pages (CORS-enabled), so an
+agent can read them directly. Start from the manifest — it lists every endpoint,
+its shape, the `asof` date, and the ticker universe:
+
+- **Manifest:** https://vhung-1.github.io/PEhistory/api.json
+- **Panels** (same base URL): `data.json` (NTM fwd P/E), `daily_px.json` (daily
+  adjusted prices), `sw_data.json` (software ref), `q_pairs.json` (consistency),
+  `btdata.json` (monthly), `bt_results.json` (backtest metrics).
+
+Every per-ticker array aligns index-for-index to `data.json`'s `dates`. The Pages
+workflow regenerates the manifest on each deploy (`python mkapi.py _site`); the
+raw repo files under `raw.githubusercontent.com/.../main/<file>` work too.
+
 ## Licensing
 Embeds Bloomberg/S&P-derived data. The data owner has **confirmed distribution
 rights**, so this dashboard is published publicly via GitHub Pages. Absent that

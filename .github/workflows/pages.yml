@@ -55,6 +55,8 @@ jobs:
           set -euo pipefail
           mkdir -p _site
           cp index.html Relative_PE_Dashboard.html _site/
+          cp data.json daily_px.json sw_data.json q_pairs.json btdata.json bt_results.json _site/
+          python mkapi.py _site   # discovery manifest -> _site/api.json
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
