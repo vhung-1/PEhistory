@@ -1,5 +1,9 @@
 # Relative-Value Forward-P/E Dashboard
 
+[![Build, gate & deploy](https://github.com/vhung-1/PEhistory/actions/workflows/pages.yml/badge.svg)](https://github.com/vhung-1/PEhistory/actions/workflows/pages.yml)
+
+**Live:** https://vhung-1.github.io/PEhistory/
+
 Self-contained interactive dashboard for L/S diversified-financials: relative NTM
 forward-P/E across 85 names in 7 sub-sectors, mean-reversion pair backtests,
 per-pair quarterly consistency, single-name P/E history, a sub-sector grid, a
@@ -32,6 +36,7 @@ Open `Relative_PE_Dashboard.html` in a browser to view (no server needed).
 ## Tokens (build.py order)
 `__QDATA__` `__BTDATA__` `__DATA__` `__DPX__` `__SWDATA__`  (long *DATA tokens before `__DATA__`).
 
-## ⚠️ Licensing
-Embeds licensed Bloomberg/S&P-derived data. **Do not host on a public site.**
-Private repo + access control only — see CLAUDE.md §11.
+## Licensing
+Embeds Bloomberg/S&P-derived data. The data owner has **confirmed distribution
+rights**, so this dashboard is published publicly via GitHub Pages. Absent that
+permission, the default is private + access-controlled — see CLAUDE.md §11.
