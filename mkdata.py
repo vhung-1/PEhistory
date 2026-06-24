@@ -5,7 +5,7 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-06-22'  # latest settled US close (Mon 22 Jun); 23 Jun is today/intraday (forward-filled). 19 Jun (Juneteenth) stays a mid-series forward-filled weekday row per CLAUDE.md §7a.
+ASOF='2026-06-23'  # latest settled US close (Tue 23 Jun); 24 Jun is today/intraday (forward-filled), excluded per CLAUDE.md §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
