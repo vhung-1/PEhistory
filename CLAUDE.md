@@ -8,7 +8,7 @@
 
 ## 1. What this is
 
-A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **NTM forward-P/E** valuation across **85 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
+A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **NTM forward-P/E** valuation across **87 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
 
 **Technical shape**
 - **No runtime dependencies, no framework, no build step needed to *view*.** Plain HTML + one inline `<script>` of vanilla JS + inline SVG + one `<canvas>`. Opens by double-click. Current size ≈ **2.1 MB**.
@@ -100,7 +100,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 - `dates`: array of **weekday-only** ISO dates (currently `2020-06-22` → `2026-06-18`, 1,564 rows). **No weekend rows** (see §9).
 - `pe`: `{ "<TICKER>": [number|null, …] }` — daily **NTM forward P/E**, aligned to `dates`. Tickers are Bloomberg-style: `"CME US"`, `"LSEG LN"`, `"DB1 GY"`, `"EQT SS"`, …
 - `sectors`: `{ "<Sub-sector>": ["<TICKER>", …] }` (the 7 sub-sectors, §8).
-- `sector_of`: reverse map. `excluded`: tickers dropped from the panel (`RELY LN`, `SQ SW`).
+- `sector_of`: reverse map. `excluded`: coverage tickers with no data in the workbook (currently none).
 
 **`btdata.json` → `const BT`** — **monthly** price panel for the Backtest tab.
 - `XMONTHS`: ~49 month-end ISO dates (currently `2022-06` … `2026-06`). `PX`: `{ "<name>": [monthly adjusted close|null] }`. Byte-identical content to `prices_all.json`. **Not** changed by the daily refresh. **The backtest return window starts 2022-06 because this panel does** (§7d).
@@ -113,7 +113,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 
 **`sw_data.json` → `const SW`** — the **Software reference panel** (for the JKHY tab only).
 - `{ asof, names:["MSFT US",…], pe:{ "<TICKER>": [number|null, …] } }`, `pe` aligned to `DATA.dates`.
-- Daily NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 85-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
+- Daily NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 87-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
 
 **Tab → source:** Pairs/Name P/E/Flags/Summary/Screen/Matrix/Grid/Coverage derive from `DATA.pe`; the Pairs click-to-measure tool reads `DPX`; Consistency reads `QD`; Backtest reads `BT`; the **Software tab reads `SW` (+ `DATA.pe['JKHY US']`)**.
 
@@ -123,7 +123,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 
 - **Pairs** — relative forward P/E of leg A ÷ leg B over time, with premium/discount stats, a window gauge, and ±-range. Either leg can be a single ticker **or** a sub-sector aggregate (sentinels `~avg~<sector>` / `~med~<sector>`); a sector-aggregate leg **excludes the other leg's ticker** from its own average/median. **Click-to-measure:** when leg A is a single ticker, click two dates on the chart to read **A's share-price total return** between them. Disabled with a hint when A is an aggregate.
 - **Name P/E** — single-name forward P/E vs its own history: ±1σ band, full-history mean, percentile, z-score, hover crosshair.
-- **Software** *(reference for JKHY)* — two pair-style selectors, **Focus** and **Compare to**, each drawn from a unified list: JKHY, **Software average**, **Software median**, and the 8 individual software names. The chart plots the two chosen series (focus teal, comparator orange) with the other software names as a faint backdrop; headline cards show each level, the focus-vs-comparator gap (red=richer/green=cheaper), and the focus's 5Y percentile; a reference table lists everyone with their own 5Y percentile. **Reference only** — `SW` is separate from the 85-name universe; nothing here feeds pairs/screens/the backtest. Default A=JKHY, B=Software median; state in `ST.swA`/`ST.swB`/`ST.swM`.
+- **Software** *(reference for JKHY)* — two pair-style selectors, **Focus** and **Compare to**, each drawn from a unified list: JKHY, **Software average**, **Software median**, and the 8 individual software names. The chart plots the two chosen series (focus teal, comparator orange) with the other software names as a faint backdrop; headline cards show each level, the focus-vs-comparator gap (red=richer/green=cheaper), and the focus's 5Y percentile; a reference table lists everyone with their own 5Y percentile. **Reference only** — `SW` is separate from the 87-name universe; nothing here feeds pairs/screens/the backtest. Default A=JKHY, B=Software median; state in `ST.swA`/`ST.swB`/`ST.swM`.
 - **Flags / Summary / Screen / Matrix / Coverage** — cross-sectional cheap/rich views from `DATA.pe`.
 - **Grid** — sub-sector small-multiple sparklines; each name vs its peer median/average (ex-self), or curated intra-sub-sector pairs; cross-sector "Compare to" hero card.
 - **Consistency** — each curated pair scored as a quarterly side-switching mean-reversion trade; expandable annotated premium/discount chart.
@@ -140,7 +140,7 @@ A full refresh updates the **P/E panel** (Bloomberg coverage workbook), the **da
 ### 7a. Forward P/E → `data.json`
 1. The investor uploads a refreshed `Coverage_PE_multiples.xlsx` (sheet `HC`; ticker row at index 2; data from row index 5). It is **calendar-daily**, and **today's row, weekends, and US market holidays are forward-filled artifacts** — *not* clean closes.
 2. In `mkdata.py` set `ASOF` to **the latest *settled* close** = the most recent completed US trading day that is **not today** (today's pull is intraday/forward-filled) and **not a market holiday**. The script caps at `ASOF` and applies a **weekday filter** (`dayofweek < 5`). Note holidays still appear as weekday rows in the workbook (forward-filled); the `ASOF` cap is what excludes them when they fall after the last real close. (Example seen in practice: a Friday Juneteenth + weekend + an intraday Monday pull ⇒ the latest settled close was the prior Thursday, so `ASOF` did **not** advance.)
-3. Run `python mkdata.py` → `data.json` (2-dp rounding; `excluded` = `RELY LN`, `SQ SW`).
+3. Run `python mkdata.py` → `data.json` (2-dp rounding). The universe is **SECTORS-driven**: any coverage ticker absent from the workbook (or all-null) is auto-`excluded`, and workbook columns outside the SECTORS lists are ignored — so vendor re-tickering can't silently change coverage.
 4. Sanity-check span/row-count, **0 weekend rows**, and that historical overlap vs the prior `data.json` is stable (mean |Δ| ≈ 0.003x). New sourced P/E **revisions** on historical dates are normal (the vendor restates NTM EPS — e.g. ENX FP, ICG LN, AMP US have all been restated across many dates) — take the new file as truth.
 
 ### 7b. Regenerate the dependent references
@@ -159,7 +159,7 @@ Source: the **S&P Global** connector (`get_prices_from_identifiers`, `periodicit
 2. To add new days **or** extend history, fetch the new segment **with overlap** into the existing series (recent: `2026-01-01 → <new asof>`; history extension: `<earlier start> → 2021-08-31`). Both windows are large enough that the connector stores them to files under `SP_PULLS_DIR` (default `tool_results/`); **process those files with Python, never paste them into context.**
 3. Per name, compute a **constant scale factor** `F = median(base[d] / new[d])` over the overlap; **verify F is stable** (max deviation < 1% ⇒ no split artifact — flag anything larger). Multiply the new segment by `F` onto the reference basis.
 4. Reassemble each name's date→price map, **realign to `data.json.dates`**, forward-fill exchange holidays, leave leading `null` before the listing date, round to 2 dp.
-5. Verify seam continuity (joins are ordinary day-over-day moves), correct listing dates, and `len(px[t]) == len(dates)` for all 85.
+5. Verify seam continuity (joins are ordinary day-over-day moves), correct listing dates, and `len(px[t]) == len(dates)` for all 87.
 6. **If nothing advances past the current asof** (e.g. a revisions-only refresh, or a holiday/intraday day excluded), no new pull is needed — just re-run `build_dpx3.py` to realign to the new date axis (the existing pulls already cover through the asof).
 
 **Ticker → S&P identifier resolution map** (verified):
@@ -179,19 +179,19 @@ Only when a fresh `bbg_software_mults.xlsx` is supplied (same HC layout; sheet m
 
 ---
 
-## 8. Coverage universe — 7 sub-sectors, 85 tickers
+## 8. Coverage universe — 7 sub-sectors, 87 tickers
 
 ```
 Exchanges (11):        CME US · ICE US · NDAQ US · CBOE US · LSEG LN · DB1 GY · ENX FP · TW US · MKTX US · MIAX US · MRX US
 Info Services (9):     SPGI US · MCO US · MSCI US · FDS US · EFX US · TRU US · EXPN LN · FICO US · VRSK US
-Payments & Fintech(22):V US · MA US · PYPL US · XYZ US · ADYEN NA · TOST US · SHOP US · SOFI US · FISV US · FIS US ·
-                       GPN US · JKHY US · CPAY US · WEX US · AFRM US · KLAR US · BILL US · CHYM US · MQ US · FOUR US · WISE LN · WU US
+Payments & Fintech(23):V US · MA US · PYPL US · XYZ US · ADYEN NA · TOST US · SHOP US · SOFI US · FISV US · FIS US ·
+                       GPN US · JKHY US · CPAY US · WEX US · AFRM US · KLAR US · BILL US · CHYM US · MQ US · FOUR US · WISE LN · RELY US · WU US
 M&A Boutiques (7):     LAZ US · EVR US · MC US · HLI US · PWP US · PJT US · PIPR US
 Alternatives (14):     PGHN SW · EQT SS · CVC NA · ICG LN · ARES US · APO US · BX US · KKR US · OWL US · CG US · BAM US · TPG US · STEP US · HLNE US
 Traditional AM (8):    BLK US · TROW US · DWS GY · AMUN FP · AB US · BEN US · IVZ US · AMP US
-Wealth & Brokers (14): SCHW US · LPLA US · HOOD US · IBKR US · COIN US · RJF US · SF US · BGN IM · FBK IM · FTK GY · CRCL US · FIGR US · ETOR US · WLTH US
+Wealth & Brokers (15): SCHW US · LPLA US · HOOD US · IBKR US · COIN US · RJF US · SF US · BGN IM · FBK IM · FTK GY · CRCL US · FIGR US · ETOR US · WLTH US · SQN SW
 ```
-Excluded from the P/E panel: `RELY LN`, `SQ SW`.
+Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US` (Remitly) and `SQ SW`→`SQN SW` (Swissquote); both were added to the universe on 2026-06-25, taking it from 85 to 87.)
 **Software reference names (NOT in the universe):** MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK — plus JKHY (already above) as the comparison subject.
 
 **Curated CLUSTERS** (26 hand-picked intra-sub-sector peer groups) live as a `const CLUSTERS = [ … ]` array in `template.html` and define the tradeable pairs. **Changing coverage = edit that array and regenerate `q_pairs.json`** (and re-run the gate, since `bt_verify` extracts `CLUSTERS`).
@@ -206,7 +206,7 @@ Excluded from the P/E panel: `RELY LN`, `SQ SW`.
 4. **Sub-sector aggregates are equal-weighted** and **self-exclude**.
 5. **Color convention:** green = cheap / positive / won; red = rich / negative / lost. The generic `.pos`/`.neg` CSS classes are **intentionally inverted** (red for premium/rich) — reuse existing inline colors.
 6. **Backtest math:** expanding-window z-score, **min 18-month** baseline; single-name signal = −z of own forward P/E; pair signal = −z of `ln(P/E_a / P/E_b)`; **population** standard deviation; monthly adjusted close, local currency, cross-currency legs FX-hedged; pair LS return = `r_A − r_B`.
-7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 85-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest.
+7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 87-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest.
 8. **The gate (§4) must pass 39/39 after every rebuild.**
 
 ---
@@ -239,7 +239,7 @@ The HTML **embeds Bloomberg-sourced forward P/E and S&P-Global-derived adjusted 
 
 ## 12. Current state & open decisions (handoff snapshot)
 
-- **`asof` = 2026-06-18**; `dates` span **2020-06-22 → 2026-06-18** (1,564 weekday rows); 85 tickers. `daily_px.json` and `sw_data.json` both span the same range.
+- **`asof` = 2026-06-25**; `dates` span **2020-06-26 → 2026-06-25** (1,565 weekday rows); **87 tickers** (RELY US + SQN SW added 2026-06-25 after the vendor re-tickered RELY LN/SQ SW). `daily_px.json` and `sw_data.json` both span the same range.
 - Most recent refresh was **revisions-only**: the coverage workbook restated ENX FP (~124 dates) and ICG LN (~81 dates) NTM forward P/E history, and the 6-year window rolled its start from 2020-06-19 to 2020-06-22. `asof` did **not** advance because Fri 19 Jun was **Juneteenth** (US markets closed), 20–21 was the weekend, and Mon 22 Jun was pulled intraday — so the latest settled close stayed Thu 18 Jun. No S&P pull was needed; all panels were realigned to the new date axis.
 - The P/E history was earlier **extended back to mid-2020**, which lengthened the expanding-z baseline and let backtest entries start ~2022 instead of 2023 — moving headline numbers (6-month buy-the-discount reversion ≈ +4.54%; portfolio Sharpe ≈ 1.02). The gate passes because engine and reference move together.
 - **Open decision:** whether to **freeze the expanding-z baseline at 2021-06** (to recover the pre-extension figures: 6m ≈ +2.98%, Sharpe ≈ 0.71) while still showing the longer chart history, vs. let it float to 2020 (current). To freeze: constrain `PEMONTHS` to `>= '2021-06'` in `backtest.py`/`bt_export.py` (and optionally `q_pairs.py`), regenerate `bt_results.json`, re-run the gate.
