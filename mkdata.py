@@ -5,7 +5,7 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-06-24'  # latest settled US close (Wed 24 Jun); 25 Jun is today/intraday (forward-filled), excluded per CLAUDE.md §7a.
+ASOF='2026-06-25'  # latest settled US close (Thu 25 Jun); 26 Jun is today/intraday (forward-filled), excluded per CLAUDE.md §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -18,14 +18,15 @@ SECTORS = {
  'Traditional AM': ['BLK US','TROW US','DWS GY','AMUN FP','AB US','BEN US','IVZ US','AMP US'],
  'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQ SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US'],
 }
-has = {t:int(data[t].notna().sum())>0 for t in tickers}
-excluded = [t for t in tickers if not has[t]]
+SECNAMES = [t for v in SECTORS.values() for t in v]   # canonical coverage drives the universe
+has = {t: (t in data.columns and int(data[t].notna().sum())>0) for t in SECNAMES}
+excluded = [t for t in SECNAMES if not has[t]]         # coverage names absent/empty in this workbook
 SECTORS_F = {k:[t for t in v if has[t]] for k,v in SECTORS.items()}
 sec_of = {t:k for k,v in SECTORS_F.items() for t in v}
 
 DATES=[d.strftime('%Y-%m-%d') for d in data.index]
 PE={}
-for t in tickers:
+for t in SECNAMES:
     if not has[t]: continue
     col=data[t]
     PE[t]=[ (None if pd.isna(v) else round(float(v),2)) for v in col.values ]
