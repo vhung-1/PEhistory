@@ -33,6 +33,7 @@ CLUSTERS=[['CME US','ICE US','NDAQ US','CBOE US'],['LSEG LN','DB1 GY','ENX FP'],
 ['EQT SS','CVC NA','ICG LN','PGHN SW'],['STEP US','HLNE US'],
 ['BLK US','TROW US','BEN US','IVZ US','AB US'],['DWS GY','AMUN FP'],
 ['SCHW US','LPLA US','RJF US','SF US'],['SCHW US','IBKR US','HOOD US','ETOR US'],
+['SAVE SS','IGG LN','AJB LN'],
 ['HOOD US','COIN US'],['COIN US','CRCL US'],['FTK GY','SQ SW','FBK IM'],['FBK IM','BGN IM']]
 clset=[set(c) for c in CLUSTERS]
 def comparable(a,b): return any(a in s and b in s for s in clset)

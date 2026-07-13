@@ -5,7 +5,7 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-07-10'  # latest settled US close (Fri 10 Jul); today is Sat 11 Jul (weekend), so Fri is fully settled. Weekend rows excluded per CLAUDE.md §7a.
+ASOF='2026-07-10'  # latest settled US close (Fri 10 Jul); today is Mon 13 Jul (intraday, forward-filled), excluded per CLAUDE.md §7a, so Fri 10 Jul stays the latest settled close.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -16,7 +16,7 @@ SECTORS = {
  'M&A Boutiques': ['LAZ US','EVR US','MC US','HLI US','PWP US','PJT US','PIPR US'],
  'Alternatives': ['PGHN SW','EQT SS','CVC NA','ICG LN','ARES US','APO US','BX US','KKR US','OWL US','CG US','BAM US','TPG US','STEP US','HLNE US'],
  'Traditional AM': ['BLK US','TROW US','DWS GY','AMUN FP','AB US','BEN US','IVZ US','AMP US'],
- 'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQN SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US'],
+ 'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQN SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US','SAVE SS','IGG LN','AJB LN'],
 }
 SECNAMES = [t for v in SECTORS.values() for t in v]   # canonical coverage drives the universe
 has = {t: (t in data.columns and int(data[t].notna().sum())>0) for t in SECNAMES}

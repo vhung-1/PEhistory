@@ -8,7 +8,7 @@
 
 ## 1. What this is
 
-A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **NTM forward-P/E** valuation across **87 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
+A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **NTM forward-P/E** valuation across **90 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
 
 **Technical shape**
 - **No runtime dependencies, no framework, no build step needed to *view*.** Plain HTML + one inline `<script>` of vanilla JS + inline SVG + one `<canvas>`. Opens by double-click. Current size ≈ **2.1 MB**.
@@ -113,7 +113,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 
 **`sw_data.json` → `const SW`** — the **Software reference panel** (for the JKHY tab only).
 - `{ asof, names:["MSFT US",…], pe:{ "<TICKER>": [number|null, …] } }`, `pe` aligned to `DATA.dates`.
-- Daily NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 87-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
+- Daily NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 90-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
 
 **Tab → source:** Pairs/Name P/E/Flags/Summary/Screen/Matrix/Grid/Coverage derive from `DATA.pe`; the Pairs click-to-measure tool reads `DPX`; Consistency reads `QD`; Backtest reads `BT`; the **Software tab reads `SW` (+ `DATA.pe['JKHY US']`)**.
 
@@ -123,7 +123,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 
 - **Pairs** — relative forward P/E of leg A ÷ leg B over time, with premium/discount stats, a window gauge, and ±-range. Either leg can be a single ticker **or** a sub-sector aggregate (sentinels `~avg~<sector>` / `~med~<sector>`); a sector-aggregate leg **excludes the other leg's ticker** from its own average/median. **Click-to-measure:** when leg A is a single ticker, click two dates on the chart to read **A's share-price total return** between them. Disabled with a hint when A is an aggregate.
 - **Name P/E** — single-name forward P/E vs its own history: ±1σ band, full-history mean, percentile, z-score, hover crosshair.
-- **Software** *(reference for JKHY)* — two pair-style selectors, **Focus** and **Compare to**, each drawn from a unified list: JKHY, **Software average**, **Software median**, and the 8 individual software names. The chart plots the two chosen series (focus teal, comparator orange) with the other software names as a faint backdrop; headline cards show each level, the focus-vs-comparator gap (red=richer/green=cheaper), and the focus's 5Y percentile; a reference table lists everyone with their own 5Y percentile. **Reference only** — `SW` is separate from the 87-name universe; nothing here feeds pairs/screens/the backtest. Default A=JKHY, B=Software median; state in `ST.swA`/`ST.swB`/`ST.swM`.
+- **Software** *(reference for JKHY)* — two pair-style selectors, **Focus** and **Compare to**, each drawn from a unified list: JKHY, **Software average**, **Software median**, and the 8 individual software names. The chart plots the two chosen series (focus teal, comparator orange) with the other software names as a faint backdrop; headline cards show each level, the focus-vs-comparator gap (red=richer/green=cheaper), and the focus's 5Y percentile; a reference table lists everyone with their own 5Y percentile. **Reference only** — `SW` is separate from the 90-name universe; nothing here feeds pairs/screens/the backtest. Default A=JKHY, B=Software median; state in `ST.swA`/`ST.swB`/`ST.swM`.
 - **Flags / Summary / Screen / Matrix / Coverage** — cross-sectional cheap/rich views from `DATA.pe`.
 - **Grid** — sub-sector small-multiple sparklines; each name vs its peer median/average (ex-self), or curated intra-sub-sector pairs; cross-sector "Compare to" hero card.
 - **Consistency** — each curated pair scored as a quarterly side-switching mean-reversion trade; expandable annotated premium/discount chart.
@@ -159,13 +159,13 @@ Source: the **S&P Global** connector (`get_prices_from_identifiers`, `periodicit
 2. To add new days **or** extend history, fetch the new segment **with overlap** into the existing series (recent: `2026-01-01 → <new asof>`; history extension: `<earlier start> → 2021-08-31`). Both windows are large enough that the connector stores them to files under `SP_PULLS_DIR` (default `tool_results/`); **process those files with Python, never paste them into context.**
 3. Per name, compute a **constant scale factor** `F = median(base[d] / new[d])` over the overlap; **verify F is stable** (max deviation < 1% ⇒ no split artifact — flag anything larger). Multiply the new segment by `F` onto the reference basis.
 4. Reassemble each name's date→price map, **realign to `data.json.dates`**, forward-fill exchange holidays, leave leading `null` before the listing date, round to 2 dp.
-5. Verify seam continuity (joins are ordinary day-over-day moves), correct listing dates, and `len(px[t]) == len(dates)` for all 87.
+5. Verify seam continuity (joins are ordinary day-over-day moves), correct listing dates, and `len(px[t]) == len(dates)` for all 90.
 6. **If nothing advances past the current asof** (e.g. a revisions-only refresh, or a holiday/intraday day excluded), no new pull is needed — just re-run `build_dpx3.py` to realign to the new date axis (the existing pulls already cover through the asof).
 
 **Ticker → S&P identifier resolution map** (verified):
 - **US (66):** plain ticker (`RJF`, `CME`, `SCHW`, …).
 - **US needing exchange qualification (4):** `MA US→NYSE:MA`, `V US→NYSE:V` (plain "Visa" mis-resolves to TSX), `BAM US→NYSE:BAM`, `MC US→NYSE:MC` (Moelis; plain "MC" can hit LVMH).
-- **Foreign (15):** `LSEG LN→LSE:LSEG`, `DB1 GY→XTRA:DB1`, `ENX FP→ENXTPA:ENX`, `EXPN LN→LSE:EXPN`, `WISE LN→LSE:WISE`, `ADYEN NA→ENXTAM:ADYEN`, `PGHN SW→SWX:PGHN`, `EQT SS→OM:EQT`, `CVC NA→ENXTAM:CVC`, `DWS GY→XTRA:DWS`, `AMUN FP→ENXTPA:AMUN`, `ICG LN→LSE:ICG` (**not** `ICP` — mis-resolves to a Kazakhstan listing), `FTK GY→XTRA:FTK`, `BGN IM→BIT:BGN`, `FBK IM→BIT:FBK`.
+- **Foreign (18):** `LSEG LN→LSE:LSEG`, `DB1 GY→XTRA:DB1`, `ENX FP→ENXTPA:ENX`, `EXPN LN→LSE:EXPN`, `WISE LN→LSE:WISE`, `ADYEN NA→ENXTAM:ADYEN`, `PGHN SW→SWX:PGHN`, `EQT SS→OM:EQT`, `CVC NA→ENXTAM:CVC`, `DWS GY→XTRA:DWS`, `AMUN FP→ENXTPA:AMUN`, `ICG LN→LSE:ICG` (**not** `ICP` — mis-resolves to a Kazakhstan listing), `FTK GY→XTRA:FTK`, `BGN IM→BIT:BGN`, `FBK IM→BIT:FBK`, `SAVE SS→OM:SAVE` (Nordnet), `IGG LN→LSE:IGG` (IG Group), `AJB LN→LSE:AJB` (AJ Bell).
 - **Always verify** the returned `company_name`/exchange after a pull, especially foreign names and recent IPOs.
 
 ### 7d. Monthly prices → `btdata.json` / `prices_all.json` (only when extending the backtest)
@@ -179,7 +179,7 @@ Only when a fresh `bbg_software_mults.xlsx` is supplied (same HC layout; sheet m
 
 ---
 
-## 8. Coverage universe — 7 sub-sectors, 87 tickers
+## 8. Coverage universe — 7 sub-sectors, 90 tickers
 
 ```
 Exchanges (11):        CME US · ICE US · NDAQ US · CBOE US · LSEG LN · DB1 GY · ENX FP · TW US · MKTX US · MIAX US · MRX US
@@ -189,12 +189,12 @@ Payments & Fintech(23):V US · MA US · PYPL US · XYZ US · ADYEN NA · TOST US
 M&A Boutiques (7):     LAZ US · EVR US · MC US · HLI US · PWP US · PJT US · PIPR US
 Alternatives (14):     PGHN SW · EQT SS · CVC NA · ICG LN · ARES US · APO US · BX US · KKR US · OWL US · CG US · BAM US · TPG US · STEP US · HLNE US
 Traditional AM (8):    BLK US · TROW US · DWS GY · AMUN FP · AB US · BEN US · IVZ US · AMP US
-Wealth & Brokers (15): SCHW US · LPLA US · HOOD US · IBKR US · COIN US · RJF US · SF US · BGN IM · FBK IM · FTK GY · CRCL US · FIGR US · ETOR US · WLTH US · SQN SW
+Wealth & Brokers (18): SCHW US · LPLA US · HOOD US · IBKR US · COIN US · RJF US · SF US · BGN IM · FBK IM · FTK GY · CRCL US · FIGR US · ETOR US · WLTH US · SQN SW · SAVE SS · IGG LN · AJB LN
 ```
-Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US` (Remitly) and `SQ SW`→`SQN SW` (Swissquote); both were added to the universe on 2026-06-25, taking it from 85 to 87.)
+Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US` (Remitly) and `SQ SW`→`SQN SW` (Swissquote); both were added to the universe on 2026-06-25, taking it from 85 to 87. On **2026-07-13** three European online brokers — **Nordnet `SAVE SS`, IG Group `IGG LN`, AJ Bell `AJB LN`** — were added to Wealth & Brokers, taking it to 90. **Avanza** was requested too but its workbook column `AVZ SS` was empty (0 data points) — dropped per the sourced-data-only rule; re-add when a populated column is supplied. Note the investor cited `AZA SS`; the workbook's Avanza column is `AVZ SS`.)
 **Software reference names (NOT in the universe):** MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK — plus JKHY (already above) as the comparison subject.
 
-**Curated CLUSTERS** (26 hand-picked intra-sub-sector peer groups) live as a `const CLUSTERS = [ … ]` array in `template.html` and define the tradeable pairs. **Changing coverage = edit that array and regenerate `q_pairs.json`** (and re-run the gate, since `bt_verify` extracts `CLUSTERS`).
+**Curated CLUSTERS** (27 hand-picked intra-sub-sector peer groups) live as a `const CLUSTERS = [ … ]` array in `template.html` and define the tradeable pairs. The 27th (added 2026-07-13) is the **European online brokers** `['SAVE SS','IGG LN','AJB LN']` (Nordnet · IG Group · AJ Bell). **The CLUSTERS array is duplicated in three places** — `template.html` (runtime + the `bt_verify` gate extracts it), `q_pairs.py` (Consistency records), and `backtest.py` (Backtest pairs) — **edit all three together, or the gate/Consistency diverge.** For a tradeable pair to produce Consistency/Backtest output, **both legs also need monthly prices in `prices_all.json`/`btdata.json`** (§7d), so pulling monthly closes is part of any coverage add that touches CLUSTERS. **Changing coverage = edit those arrays and regenerate `q_pairs.json` + `bt_results.json`** (and re-run the gate).
 
 ---
 
@@ -206,7 +206,7 @@ Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US`
 4. **Sub-sector aggregates are equal-weighted** and **self-exclude**.
 5. **Color convention:** green = cheap / positive / won; red = rich / negative / lost. The generic `.pos`/`.neg` CSS classes are **intentionally inverted** (red for premium/rich) — reuse existing inline colors.
 6. **Backtest math:** expanding-window z-score, **min 18-month** baseline; single-name signal = −z of own forward P/E; pair signal = −z of `ln(P/E_a / P/E_b)`; **population** standard deviation; monthly adjusted close, local currency, cross-currency legs FX-hedged; pair LS return = `r_A − r_B`.
-7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 87-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest.
+7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 90-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest.
 8. **The gate (§4) must pass 39/39 after every rebuild.**
 
 ---
@@ -239,9 +239,9 @@ The HTML **embeds Bloomberg-sourced forward P/E and S&P-Global-derived adjusted 
 
 ## 12. Current state & open decisions (handoff snapshot)
 
-- **`asof` = 2026-06-25**; `dates` span **2020-06-26 → 2026-06-25** (1,565 weekday rows); **87 tickers** (RELY US + SQN SW added 2026-06-25 after the vendor re-tickered RELY LN/SQ SW). `daily_px.json` and `sw_data.json` both span the same range.
-- Most recent refresh was **revisions-only**: the coverage workbook restated ENX FP (~124 dates) and ICG LN (~81 dates) NTM forward P/E history, and the 6-year window rolled its start from 2020-06-19 to 2020-06-22. `asof` did **not** advance because Fri 19 Jun was **Juneteenth** (US markets closed), 20–21 was the weekend, and Mon 22 Jun was pulled intraday — so the latest settled close stayed Thu 18 Jun. No S&P pull was needed; all panels were realigned to the new date axis.
-- The P/E history was earlier **extended back to mid-2020**, which lengthened the expanding-z baseline and let backtest entries start ~2022 instead of 2023 — moving headline numbers (6-month buy-the-discount reversion ≈ +4.54%; portfolio Sharpe ≈ 1.02). The gate passes because engine and reference move together.
+- **`asof` = 2026-07-10**; `dates` span **2020-07-13 → 2026-07-10** (1,565 weekday rows); **90 tickers**. `daily_px.json` and `sw_data.json` both span the same range.
+- Most recent change (**2026-07-13**) was a **coverage expansion**: added three European online brokers — **Nordnet `SAVE SS`, IG Group `IGG LN`, AJ Bell `AJB LN`** — to Wealth & Brokers *and* as a new curated CLUSTER (tradeable pairs). Pulled daily prices (→ `daily_px.json`, 90 names) and monthly closes (→ `prices_all.json`/`btdata.json`, 73 names) for all three; regenerated `q_pairs.json` (95→98 records) and `bt_results.json`. `asof` did **not** advance: the workbook ran through Mon 13 Jul (today/intraday), so Fri 10 Jul stayed the latest settled close. **Avanza** was requested but its workbook column `AVZ SS` was empty — dropped pending a populated upload.
+- The P/E history was earlier **extended back to mid-2020**, which lengthened the expanding-z baseline and let backtest entries start ~2022 instead of 2023. With the 3 European brokers now in the tradeable universe (73 names), headline numbers are **6-month buy-the-discount reversion ≈ +4.58%; portfolio Sharpe ≈ 1.13**. The gate passes because engine and reference move together.
 - **Open decision:** whether to **freeze the expanding-z baseline at 2021-06** (to recover the pre-extension figures: 6m ≈ +2.98%, Sharpe ≈ 0.71) while still showing the longer chart history, vs. let it float to 2020 (current). To freeze: constrain `PEMONTHS` to `>= '2021-06'` in `backtest.py`/`bt_export.py` (and optionally `q_pairs.py`), regenerate `bt_results.json`, re-run the gate.
 - The **Software tab** was added as a JKHY reference (separate `SW` constant + `__SWDATA__` token + `mksw.py`); it is fully isolated from the relative-value machinery.
 

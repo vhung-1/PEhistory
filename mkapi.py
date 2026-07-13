@@ -31,7 +31,7 @@ manifest = {
          "desc": "Daily adjusted close (total return, local currency, single basis), aligned to data.json dates; null before each listing date."},
         {"path": "sw_data.json",
          "shape": "{asof, names[], pe{TICKER:[float|null,...]}}",
-         "desc": "Software reference panel (JKHY tab), aligned to data.json dates. Reference-only; NOT in the 85-name universe."},
+         "desc": "Software reference panel (JKHY tab), aligned to data.json dates. Reference-only; NOT in the coverage universe."},
         {"path": "q_pairs.json",
          "shape": "[{a, b, sec, nq, hit, avgq, cum, ic, devnow, q[], ser[]}, ...]",
          "desc": "Per-pair quarterly mean-reversion consistency records."},
