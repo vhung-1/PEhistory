@@ -5,7 +5,7 @@
 **Live:** https://vhung-1.github.io/PEhistory/
 
 Self-contained interactive dashboard for L/S diversified-financials: relative NTM
-forward-P/E across 90 names in 7 sub-sectors, mean-reversion pair backtests,
+forward-P/E across 91 names in 7 sub-sectors, mean-reversion pair backtests,
 per-pair quarterly consistency, single-name P/E history, a sub-sector grid, a
 click-to-measure share-price-return tool, and a Software reference tab for JKHY.
 
