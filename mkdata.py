@@ -5,7 +5,7 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-07-17'  # latest settled US close (Fri 17 Jul); 19 Jul (today) is weekend, excluded per CLAUDE.md §7a.
+ASOF='2026-07-20'  # latest settled US close (Mon 20 Jul); 21 Jul (today) is intraday, excluded per CLAUDE.md §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
