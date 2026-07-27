@@ -1237,20 +1237,21 @@ function npTicks(lo,hi,n){if(!(hi>lo))return[lo];const range=npNiceNum(hi-lo,fal
 function npRefreshNames(){const nn=namesIn(ST.npSec);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSel(document.getElementById('np-name'),nn,ST.npName);}
 function renderNamePE(){
   const t=ST.npName;
-  const full=peSeries(t);const s=full.val.length?stat(full.val):null;
+  const full=peSeries(t);
   document.getElementById('np-title').innerHTML=t+' <span>\u2014 forward P/E vs history</span>';
-  if(!s){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
+  if(!full.val.length){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
+  const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
+  const s=stat(val);
   const mean=s.mean,sd=s.sd,up=mean+sd,dn=mean-sd,fx=v=>v.toFixed(1)+'x';
   const cards=[
     {k:'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
-    {k:'Average',v:fx(mean)},
+    {k:'Average \u00b7 window',v:fx(mean)},
     {k:'+1\u03c3',v:fx(up)},
     {k:'\u22121\u03c3',v:fx(dn)},
     {k:'Percentile',v:s.pile.toFixed(0)+'<small>th</small>'},
     {k:'Z-score',v:(s.z>=0?'+':'\u2212')+Math.abs(s.z).toFixed(2),cls:s.z>=0?'pos':'neg'},
   ];
   document.getElementById('np-stats').innerHTML=cards.map(c=>'<div class="stat"><div class="k">'+c.k+'</div><div class="v num '+(c.cls||'')+'">'+c.v+'</div></div>').join('');
-  const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
   const W=900,H=380,ml=46,mr=62,mt=16,mb=26,pw=W-ml-mr,ph=H-mt-mb;
   let lo=Math.min(dn,...val),hi=Math.max(up,...val);const pad=(hi-lo)*0.08||1;lo-=pad;hi+=pad;const span=(hi-lo)||1;
   const xi=i=>ml+(L<=1?0:pw*i/(L-1)),y=v=>mt+ph*(hi-v)/span;
@@ -1286,8 +1287,9 @@ function renderNamePE(){
   g+='<circle id="np-dot" cx="0" cy="0" r="3.4" fill="var(--series)" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" style="display:none"/>';
   g+='<rect id="np-ov" x="'+x0+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" fill="transparent" style="cursor:crosshair"/>';
   document.getElementById('np-chart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block;width:100%;height:100%">'+g+'</svg>';
-  const first=fmtMon(D[full.idx[0]]);
-  document.getElementById('np-note').innerHTML=t+' trades at <b>'+fx(s.cur)+'</b>, '+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' its full-history average of <b>'+fx(mean)+'</b> (since '+first+') \u2014 the '+s.pile.toFixed(0)+'th percentile of its own range. It has spanned '+fx(s.min)+' to '+fx(s.max)+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.'+(ST.npM?(' Showing the last '+(ST.npM/12)+' years; the average and \u00b11\u03c3 use the full available history.'):'');
+  const first=fmtMon(D[idx[0]]);
+  const windowTxt=ST.npM?('trailing '+(ST.npM/12)+'-year'):'full-history';
+  document.getElementById('np-note').innerHTML=t+' trades at <b>'+fx(s.cur)+'</b>, '+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' its '+windowTxt+' average of <b>'+fx(mean)+'</b> (since '+first+') \u2014 the '+s.pile.toFixed(0)+'th percentile of '+(ST.npM?'this window':'its own range')+'. It has spanned '+fx(s.min)+' to '+fx(s.max)+(ST.npM?' over this window':'')+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.';
   const svg=document.getElementById('np-chart').querySelector('svg');
   const ov=svg.querySelector('#np-ov'),cross=svg.querySelector('#np-cross'),dot=svg.querySelector('#np-dot'),read=document.getElementById('np-read');
   ov.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();let frac=((ev.clientX-r.left)/r.width*W-ml)/pw;frac=Math.max(0,Math.min(1,frac));const i=Math.round(frac*(L-1));const X=xi(i),Y=y(val[i]);cross.setAttribute('x1',X);cross.setAttribute('x2',X);cross.style.display='';dot.setAttribute('cx',X);dot.setAttribute('cy',Y);dot.style.display='';read.style.display='block';read.textContent=fmtMon(D[idx[i]])+' \u00b7 '+val[i].toFixed(1)+'x';});
