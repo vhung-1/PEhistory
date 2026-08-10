@@ -27,7 +27,7 @@ header{position:sticky;top:0;z-index:30;background:rgba(246,248,249,.86);backdro
 .brand .eyebrow{font-size:10px;font-weight:650;letter-spacing:1.4px;text-transform:uppercase;color:var(--accent);margin-bottom:2px;}
 .meta{font-size:11px;color:var(--muted);text-align:right;line-height:1.5;}
 .meta b{color:var(--ink2);font-weight:600;}
-.tabs{display:inline-flex;background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px;}
+.tabs{display:inline-flex;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line2);border-radius:9px;padding:3px;gap:2px;}
 .tabs button{font-family:var(--sans);font-size:12px;font-weight:560;color:var(--muted);background:none;border:0;padding:7px 14px;border-radius:7px;cursor:pointer;transition:.13s;letter-spacing:.1px;}
 .tabs button:hover{color:var(--ink);}
 .tabs button[aria-selected="true"]{background:var(--ink);color:#fff;box-shadow:0 1px 2px rgba(0,0,0,.12);}
@@ -121,6 +121,10 @@ tbody td:first-child:hover{color:var(--accent);text-decoration:underline;}
 tbody tr:hover{background:var(--panel2);}
 tbody tr.secrow td{background:#EEF3F5;font-weight:650;color:var(--ink);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--line2);padding:9px 11px;}
 .cell{border-radius:5px;padding:2px 7px;font-family:var(--mono);font-variant-numeric:tabular-nums;display:inline-block;min-width:46px;}
+tbody tr.rr-up>td{background:rgba(46,125,82,.075);}
+tbody tr.rr-dn>td{background:rgba(192,57,43,.075);}
+svg.rrb{display:block;margin:0 auto;}
+.rrwarn{color:#C0392B;font-size:11px;cursor:help;opacity:.85;}
 .muted-c{color:var(--muted);}
 #cov-tbl td.pair{text-align:left;white-space:normal;min-width:340px;}
 #cov-tbl th.pair{text-align:left;}
@@ -303,6 +307,7 @@ footer b{color:var(--muted);}
         <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
         <button role="tab" aria-selected="false" data-tab="grid">Grid</button>
         <button role="tab" aria-selected="false" data-tab="coverage">Coverage</button>
+        <button role="tab" aria-selected="false" data-tab="rerate">Re-rate</button>
         <button role="tab" aria-selected="false" data-tab="consistency">Consistency</button>
         <button role="tab" aria-selected="false" data-tab="backtest">Backtest</button>
       </div>
@@ -448,7 +453,8 @@ footer b{color:var(--muted);}
       <table id="s-table"><thead></thead><tbody></tbody></table>
     </div>
     <div class="note" style="border:0;padding-top:12px;">
-      <b>%ile / Z</b> are current vs the name's own 5-yr history (low = cheap). <b>vs Sector</b> compares each name's P/E to the sector median — current and on 5-yr averages.
+      <b>1Y / 3Y / 5Y avg</b> are the name's own trailing average forward P/E over that window; the <b>vs</b> column beside each is today's multiple against it — green = trading <b>below</b> its own average (cheap), red = above (rich).
+      <b>%ile / Z</b> are current vs the name's own <b>full</b> embedded history (low = cheap). <b>vs Sector</b> compares each name's P/E to the sector median — current and on 5-yr averages.
       <b>Re-rate gap</b> = current premium to sector less its historical premium; negative (green) = de-rated vs peers relative to normal.
     </div>
   </section>
@@ -477,14 +483,14 @@ footer b{color:var(--muted);}
       <div class="swapwrap" style="padding-bottom:6px;"><button class="swap" id="grid-swap" title="Swap the two sub-sectors">⇄</button></div>
       <div class="ctl"><label>Compare to</label><select id="grid-cmp"></select></div>
       <div class="ctl"><label>Each card</label><div class="ranges" id="grid-mode">
-        <button data-mode="med" aria-selected="true">vs peer median</button><button data-mode="avg">vs peer average</button><button data-mode="pairs">curated pairs</button></div></div>
+        <button data-mode="med" aria-selected="true">vs peer median</button><button data-mode="avg">vs peer average</button><button data-mode="own">vs own history</button><button data-mode="pairs">curated pairs</button></div></div>
       <div class="ctl"><label>History</label><div class="ranges" id="grid-range">
         <button data-m="12">1Y</button><button data-m="36" aria-selected="true">3Y</button><button data-m="60">5Y</button><button data-m="0">Max</button></div></div>
-      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;"><b id="grid-count"></b> &middot; cheapest first &middot; click a card to open it in Pairs</div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;"><b id="grid-count"></b> &middot; cheapest first &middot; <span id="grid-hint">click a card to open it in Pairs</span></div>
     </div>
     <div id="grid-wrap"></div>
     <div class="note" style="border:0;padding-top:14px;">
-      Each card is a relative forward-P/E line for the chosen sub-sector. In <b>vs peer median / average</b> mode every card is one name versus the equal-weighted median (or mean) of its sub-sector peers, <b>excluding that name itself</b>; the dot is the latest reading and the dashed line is the normal (0%) level. In <b>curated pairs</b> mode the cards are the tradeable intra-sub-sector pairs. Set <b>Compare to</b> a different sub-sector to compare across groups: each card then shows a name versus that sub-sector’s median/average, and the highlighted card on top is the two groups’ aggregate multiples against each other (e.g. Exchanges median ÷ Info Services median). A green dot below 0 = cheap versus the group; a red dot above 0 = rich. Cards are sorted cheapest-first. Click any card to open the full chart, stats and history window in the Pairs tab.
+      Each card is a forward-P/E line for the chosen sub-sector. In <b>vs peer median / average</b> mode every card is one name versus the equal-weighted median (or mean) of its sub-sector peers, <b>excluding that name itself</b>; the dot is the latest reading and the dashed line is the normal (0%) level. In <b>vs own history</b> mode each card is instead a single name against <b>its own trailing average</b> over the selected window — no peer involved, so the dashed 0-line is that name's own average P/E (printed in the card footer) and the card shows whether it is cheap or rich <i>versus itself</i>; click one to open it in Name P/E. In <b>curated pairs</b> mode the cards are the tradeable intra-sub-sector pairs. Set <b>Compare to</b> a different sub-sector to compare across groups: each card then shows a name versus that sub-sector’s median/average, and the highlighted card on top is the two groups’ aggregate multiples against each other (e.g. Exchanges median ÷ Info Services median). A green dot below 0 = cheap versus the group; a red dot above 0 = rich. Cards are sorted cheapest-first. Click any card to open the full chart, stats and history window in the Pairs tab.
     </div>
   </section>
 
@@ -498,6 +504,27 @@ footer b{color:var(--muted);}
     </div>
     <div class="note" style="border:0;padding-top:12px;">
       <b>Current P/E</b> is NTM forward. <b>vs sector (now)</b> compares each name to its sub-sector <span id="cov-aggw">average</span> today; <b>vs sector (hist)</b> compares the name's 5-yr-average P/E to the sub-sector's 5-yr-average (its structural premium / discount); <b>vs own history</b> is the current P/E against the name's own 5-yr average. Green = cheap, red = rich. In the <b>Custom pair</b> column, choose any name (grouped by sub-sector) to see the current premium, the 5-yr-average premium, and how stretched today's spread is in standard deviations; click the result to open the full pair chart.
+    </div>
+  </section>
+
+  <!-- ===== RE-RATE ===== -->
+  <section class="view" id="view-rerate" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>History window</label><div class="ranges" id="rr-range">
+        <button data-m="12">1Y</button><button data-m="36" aria-selected="true">3Y</button><button data-m="60">5Y</button></div></div>
+      <div class="ctl"><label>High / low basis</label><div class="ranges" id="rr-basis">
+        <button data-b="pct" aria-selected="true">5&ndash;95 pctile</button><button data-b="ext">True extremes</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Click a ticker to chart it &middot; click a column to sort &middot; <b id="rr-count"></b></div>
+    </div>
+    <div class="panel tblwrap" style="margin-top:14px;padding:0 0 4px;">
+      <table id="rr-tbl"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note" style="border:0;padding-top:12px;">
+      Share-price upside if the name re-rates to the <b>high</b>, <b>average</b> or <b>low</b> forward P/E it traded on over the selected window, <b>holding NTM EPS constant</b> &mdash; so each figure is purely the multiple move (<span class="num">target P/E &divide; current P/E &minus; 1</span>), not an earnings call.
+      <b>Skew</b> = upside-to-high <i>less</i> downside-to-low, in percentage points: positive means more room up than down. The bullet chart shows the same thing visually &mdash; the bar spans low&ndash;to&ndash;high, the dark centre line is today's price, and the orange tick is the average; all rows share one scale so they are directly comparable. That scale is set to the 85th percentile of the range widths on the page rather than the widest one (otherwise a single blown-up name would flatten every other bar), so the widest ~15% run off the edge and are marked with a &#9654; chevron. Rows are tinted <span style="color:#2E7D52;font-weight:600">green</span> where skew exceeds +10pp and <span style="color:#C0392B;font-weight:600">red</span> below &minus;10pp.
+      <b>High / low basis.</b> <b>5&ndash;95 pctile</b> (default) takes the 95th and 5th percentile of the window, which strips the near-breakeven blow-ups where NTM EPS approaches zero and the P/E explodes &mdash; on the true-extreme basis several loss-making names print highs of 400&ndash;2,000&times;, which are arithmetic artifacts rather than multiples anything could re-rate to. <b>True extremes</b> uses the literal window high and low; it is the more faithful read for names with a clean earnings history, but expect a handful of implausible outliers to top the skew ranking. On the percentile basis today's multiple can sit <i>outside</i> the band (already above the 95th or below the 5th), in which case &ldquo;% to high&rdquo; can be negative or &ldquo;% to low&rdquo; positive &mdash; both are coloured by sign.
+      A <span class="rrwarn">&#9888;</span> beside a ticker means the range is <b>distorted</b>: its high is more than 2.5&times; the window median, which happens when the name passed through a near-breakeven stretch where EPS approached zero and the P/E blew up without saying anything about valuation. That affects mostly the fintech / payments names that inflected from loss-making, and it is <i>not</i> fixed by switching basis &mdash; treat those upside figures as unreliable and read the Name P/E chart instead.
+      <b>Caveat:</b> names listed for less than the window (recent IPOs) fall back to their full available history, shown by a shorter <span class="num">n</span> &mdash; their high/low reflect a shorter and often more volatile record.
     </div>
   </section>
 
@@ -595,7 +622,13 @@ function legLabel(leg){if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'
 function legSecOf(leg){return isAgg(leg)?leg.slice(5):SECOF[leg];}
 function sliceMonths(ps,m){if(!m||ps.idx.length===0)return ps;const lastDate=new Date(D[ps.idx[ps.idx.length-1]]+'T00:00:00');const cut=new Date(lastDate);cut.setMonth(cut.getMonth()-m);const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){if(new Date(D[ps.idx[k]]+'T00:00:00')>=cut){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
 function stat(v){if(v.length===0)return null;const n=v.length;const mean=v.reduce((s,x)=>s+x,0)/n;const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));const cur=v[n-1];const below=v.filter(x=>x<cur).length;return{mean,sd,cur,n,min:Math.min(...v),max:Math.max(...v),pile:below/n*100,z:sd?(cur-mean)/sd:0};}
-function nameStats(t){const a=PE[t];const vals=[],idx=[];for(let i=0;i<N;i++)if(a[i]!=null){vals.push(a[i]);idx.push(i);}if(!vals.length)return null;const cur=vals[vals.length-1];const lastD=new Date(D[idx[idx.length-1]]+'T00:00:00');const after=(m)=>{const c=new Date(lastD);c.setMonth(c.getMonth()-m);let s=0,k=0;for(let j=0;j<idx.length;j++){if(new Date(D[idx[j]]+'T00:00:00')>=c){s+=vals[j];k++;}}return k?s/k:null;};const mean=vals.reduce((s,x)=>s+x,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,x)=>s+(x-mean)**2,0)/(vals.length>1?vals.length-1:1));const below=vals.filter(x=>x<cur).length;return{cur,a1:after(12),a3:after(36),a5:mean,pile:below/vals.length*100,z:sd?(cur-mean)/sd:0};}
+function nameStats(t){const a=PE[t];const vals=[],idx=[];for(let i=0;i<N;i++)if(a[i]!=null){vals.push(a[i]);idx.push(i);}if(!vals.length)return null;const cur=vals[vals.length-1];const lastD=new Date(D[idx[idx.length-1]]+'T00:00:00');const after=(m)=>{const c=new Date(lastD);c.setMonth(c.getMonth()-m);let s=0,k=0;for(let j=0;j<idx.length;j++){if(new Date(D[idx[j]]+'T00:00:00')>=c){s+=vals[j];k++;}}return k?s/k:null;};const mean=vals.reduce((s,x)=>s+x,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,x)=>s+(x-mean)**2,0)/(vals.length>1?vals.length-1:1));const below=vals.filter(x=>x<cur).length;
+  // a5 is a genuine trailing 60-month window (it previously used the full-history mean, which
+  // silently stopped meaning "5Y" once the P/E history was extended back to 2020). pile/z remain
+  // full-history and are labelled as such in the tab footnotes.
+  const a1=after(12),a3=after(36),a5=after(60);
+  const pctOf=(avg)=>(avg!=null&&avg>0&&cur>0)?cur/avg-1:null;
+  return{cur,a1,a3,a5,d1:pctOf(a1),d3:pctOf(a3),d5:pctOf(a5),full:mean,pile:below/vals.length*100,z:sd?(cur-mean)/sd:0};}
 function median(arr){const a=arr.filter(x=>x!=null).slice().sort((p,q)=>p-q);const n=a.length;if(!n)return null;return n%2?a[(n-1)/2]:(a[n/2-1]+a[n/2])/2;}
 function legRoot(t){return String(t).replace(/ (US|LN|GY|FP|NA|SS|SW|IM)$/,"");}
 function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
@@ -614,7 +647,7 @@ function sectorMetrics(sec){
 
 // ---------- state ----------
 const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pairs',
-          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
+          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',rrM:36,rrBasis:'pct',rrSort:{k:'skew',dir:-1},npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
 
 function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
 function sectorList(){return Object.keys(SEC);}
@@ -912,11 +945,15 @@ function renderSummary(){
   host.querySelectorAll('.tk[data-a]').forEach(el=>el.onclick=()=>loadPair(el.dataset.a,el.dataset.b,SECOF[el.dataset.a]));
 }
 // ---------- SCREEN ----------
-const SCOLS=[['t','Ticker'],['cur','Curr'],['a1','1Y'],['a3','3Y'],['a5','5Y'],['pile','%ile'],['z','Z'],['vc','vs Sec·Curr'],['vh','vs Sec·Hist'],['gap','Re-rate gap']];
+const SCOLS=[['t','Ticker'],['cur','Curr'],
+  ['a1','1Y avg'],['d1','vs 1Y'],['a3','3Y avg'],['d3','vs 3Y'],['a5','5Y avg'],['d5','vs 5Y'],
+  ['pile','%ile'],['z','Z'],['vc','vs Sec·Curr'],['vh','vs Sec·Hist'],['gap','Re-rate gap']];
 function renderScreen(){
   const sec=ST.sSec,{rows,medCur,medA5}=sectorMetrics(sec);
   const k=ST.sSort.k,dir=ST.sSort.dir;
-  rows.sort((x,y)=>k==='t'?(x.t<y.t?-1:1)*dir:((x[k]-y[k])*dir));
+  // null-safe: the windowed columns (a1/a3/a5 and their vs-% partners) are null for short-history names
+  rows.sort((x,y)=>{if(k==='t')return (x.t<y.t?-1:x.t>y.t?1:0)*dir;
+    const xv=x[k],yv=y[k];if(xv==null&&yv==null)return 0;if(xv==null)return 1;if(yv==null)return -1;return (xv-yv)*dir;});
   const thead=document.querySelector('#s-table thead');
   thead.innerHTML='<tr>'+SCOLS.map(([key,lab])=>`<th data-k="${key}">${lab}${k===key?`<span class="ar">${dir>0?'▲':'▼'}</span>`:''}</th>`).join('')+'</tr>';
   thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{const kk=th.dataset.k;if(ST.sSort.k===kk)ST.sSort.dir*=-1;else{ST.sSort.k=kk;ST.sSort.dir=1;}renderScreen();});
@@ -926,8 +963,14 @@ function renderScreen(){
       const pileC=`background:${scaleBG(r.pile,0,50,100,[227,241,232],WHITE,[251,231,228])};color:${r.pile<25||r.pile>75?'#1a2a35':'#33454f'}`;
       const zC=`background:${scaleBG(r.z,-2,0,2,[227,241,232],WHITE,[251,231,228])}`;
       const gC=`background:${scaleBG(r.gap,-0.15,0,0.15,[227,241,232],WHITE,[251,231,228])}`;
+      // current vs each trailing average: green = trading below its own average (cheap), red = above
+      const dC=v=>`background:${scaleBG(v,-0.30,0,0.30,[227,241,232],WHITE,[251,231,228])}`;
+      const dCell=v=>v==null?'<td class="num muted-c">—</td>'
+        :`<td class="num"><span class="cell" style="${dC(v)}">${sgn(v,0)}</span></td>`;
       return `<tr><td data-t="${r.t}">${r.t}</td><td class="num">${px(r.cur)}</td>
-        <td class="num muted-c">${r.a1!=null?px(r.a1):'—'}</td><td class="num muted-c">${r.a3!=null?px(r.a3):'—'}</td><td class="num muted-c">${px(r.a5)}</td>
+        <td class="num muted-c">${r.a1!=null?px(r.a1):'—'}</td>${dCell(r.d1)}
+        <td class="num muted-c">${r.a3!=null?px(r.a3):'—'}</td>${dCell(r.d3)}
+        <td class="num muted-c">${r.a5!=null?px(r.a5):'—'}</td>${dCell(r.d5)}
         <td class="num"><span class="cell" style="${pileC}">${r.pile.toFixed(0)}</span></td>
         <td class="num"><span class="cell" style="${zC}">${(r.z>=0?'+':'−')+Math.abs(r.z).toFixed(2)}</span></td>
         <td class="num">${sgn(r.vc,0)}</td><td class="num">${sgn(r.vh,0)}</td>
@@ -1038,6 +1081,7 @@ function switchTab(t){
   if(t==='namepe')renderNamePE();
   if(t==='software')renderSW();
   if(t==='coverage')renderCoverage();
+  if(t==='rerate')renderRerate();
   if(t==='consistency')renderConsistency();
   if(t==='backtest')renderBacktest();
 }
@@ -1135,6 +1179,113 @@ function conDetail(r){
   const table='<table class="qdet"><thead><tr><th>Quarter</th><th class="num">Disc / prem<br>at start</th><th>Position that quarter</th><th class="num">Q return</th><th class="num">Hit</th></tr></thead><tbody>'+rows+'</tbody></table>';
   return head+leg+'<div class="qdetgrid"><div class="qdetleft">'+table+'</div><div class="qdetright">'+conChart(r)+'</div></div>';
 }
+// ===== RE-RATE TAB (upside to the high / average / low multiple of a chosen window) =====
+// Pure multiple arithmetic: NTM EPS is held constant, so every % is target P/E ÷ current P/E − 1.
+// hi/lo are the true extremes of the window (single-day prints), as requested — flagged in the note.
+function rrPct(sorted,q){ // linear-interpolated percentile on an ascending array
+  const n=sorted.length;if(!n)return null;if(n===1)return sorted[0];
+  const p=(n-1)*q,lo=Math.floor(p),hi=Math.ceil(p);
+  return lo===hi?sorted[lo]:sorted[lo]+(sorted[hi]-sorted[lo])*(p-lo);
+}
+function rrStats(t,months,basis){
+  const a=PE[t];if(!a)return null;
+  const idx=[],val=[];
+  for(let i=0;i<N;i++)if(a[i]!=null){idx.push(i);val.push(a[i]);}
+  if(!val.length)return null;
+  const cur=val[val.length-1];
+  if(!(cur>0))return null;
+  const w=sliceMonths({idx,val},months);
+  if(w.val.length<2)return null;
+  const avg=w.val.reduce((s,x)=>s+x,0)/w.val.length;
+  const srt=w.val.slice().sort((p,q)=>p-q);
+  // 'ext' = true window extremes (as originally specified). 'pct' = 5th/95th percentile, which
+  // strips the near-zero-EPS blow-ups (e.g. a loss-making name printing a 2,000x "high") that make
+  // the extreme basis unusable as a re-rate target. In 'pct' mode today's multiple can sit OUTSIDE
+  // the band, so uHi is not guaranteed >= 0 and uLo not guaranteed <= 0 — handled downstream.
+  const hi=basis==='pct'?rrPct(srt,0.95):srt[srt.length-1];
+  const lo=basis==='pct'?rrPct(srt,0.05):srt[0];
+  if(!(avg>0)||!(hi>0)||!(lo>0))return null;
+  const uHi=hi/cur-1,uAvg=avg/cur-1,uLo=lo/cur-1;
+  // Distortion flag: when the top of the range is a large multiple of the window's median, the P/E
+  // series spent part of the window near breakeven (EPS → 0 inflates P/E without saying anything
+  // about valuation). Those ranges are not usable re-rate targets on any basis, so mark the row.
+  const md=rrPct(srt,0.5),distorted=(md>0&&hi/md>2.5);
+  return {t,cur,avg,hi,lo,med:md,distorted,n:w.val.length,first:D[w.idx[0]],uHi,uAvg,uLo,skew:uHi+uLo};
+}
+// Compact bullet: bar spans low→high, dark centre line = today, orange tick = window average.
+// `dom` is shared across every visible row so bar lengths are comparable between names.
+function rrBullet(r,dom){
+  const W=168,H=20,ml=3,mr=3,pw=W-ml-mr,mid=ml+pw/2,half=pw/2;
+  const x=v=>mid+half*Math.max(-1,Math.min(1,(dom>0?v/dom:0)));
+  const xLo=x(r.uLo),xHi=x(r.uHi),xAvg=x(r.uAvg);
+  // Split the low→high band at today's price. On the percentile basis the whole band can sit on one
+  // side of today, so each half is clipped to the centre and drawn only when it has positive width.
+  const rL=xLo,rR=Math.min(mid,xHi),gL=Math.max(mid,xLo),gR=xHi;
+  const bar=(x0,x1,fill)=>{const w=x1-x0;return w>0.15?'<rect x="'+x0.toFixed(1)+'" y="6" width="'+w.toFixed(1)+'" height="8" fill="'+fill+'"/>':'';};
+  // The domain is a robust p85 of all rows, so a long tail is truncated at the frame edge; mark
+  // those with a chevron so a clipped bar is never mistaken for one that genuinely ends there.
+  const clip=(side,col)=>{const e=side>0?W-mr:ml,d=side>0?-4:4;
+    return '<path d="M'+e+' 5 L'+(e+d)+' 10 L'+e+' 15 Z" fill="'+col+'"/>';};
+  const tip=esc(r.t+' — '+(r.uLo<=0?'down ':'up ')+sgn(r.uLo,0)+' to low '+px(r.lo)+' / '+(r.uHi>=0?'up ':'down ')+sgn(r.uHi,0)+' to high '+px(r.hi)+' · avg '+px(r.avg));
+  return '<svg class="rrb" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" preserveAspectRatio="none"><title>'+tip+'</title>'
+    +'<line x1="'+ml+'" y1="10" x2="'+(W-mr)+'" y2="10" stroke="var(--line)" stroke-width="1"/>'
+    +bar(rL,rR,'rgba(192,57,43,.32)')+bar(gL,gR,'rgba(46,125,82,.32)')
+    +(r.uHi>dom?clip(1,'rgba(46,125,82,.8)'):'')+(-r.uLo>dom?clip(-1,'rgba(192,57,43,.8)'):'')
+    +'<line x1="'+xAvg.toFixed(1)+'" y1="3.5" x2="'+xAvg.toFixed(1)+'" y2="16.5" stroke="var(--avg)" stroke-width="2"/>'
+    +'<line x1="'+mid.toFixed(1)+'" y1="1.5" x2="'+mid.toFixed(1)+'" y2="18.5" stroke="var(--ink2)" stroke-width="1.4"/></svg>';
+}
+const RRCOLS=[['t','Company'],['cur','Curr P/E'],['hi','High P/E'],['uHi','% to high'],
+  ['avg','Avg P/E'],['uAvg','% to avg'],['lo','Low P/E'],['uLo','% to low'],['skew','Skew (pp)'],['n','n']];
+function renderRerate(){
+  const months=ST.rrM,wl=(months/12)+'Y',basis=ST.rrBasis;
+  document.querySelectorAll('#rr-range button').forEach(b=>b.setAttribute('aria-selected',+b.dataset.m===months));
+  document.querySelectorAll('#rr-basis button').forEach(b=>b.setAttribute('aria-selected',b.dataset.b===basis));
+  const k=ST.rrSort.k,dir=ST.rrSort.dir;
+  document.querySelector('#rr-tbl thead').innerHTML='<tr>'
+    +RRCOLS.map(c=>'<th data-k="'+c[0]+'">'+c[1]+(k===c[0]?'<span class="ar">'+(dir>0?'▲':'▼')+'</span>':'')+'</th>').join('')
+    +'<th style="text-align:center;cursor:default">Skew &middot; low ← today → high</th></tr>';
+  // One shared bullet scale across every name so bar lengths are comparable. Using the outright
+  // max would let a single EPS-inflection name (whose range runs to several hundred %) crush every
+  // other row into an unreadable sliver, so the domain is the 85th percentile of row extents and
+  // the ~15% that overflow are drawn clipped with a chevron.
+  const all=[];sectorList().forEach(sec=>namesIn(sec).filter(t=>PE[t]).forEach(t=>{const r=rrStats(t,months,basis);if(r)all.push(r);}));
+  const ext=all.map(r=>Math.max(r.uHi,-r.uLo,0)).sort((a,b)=>a-b);
+  const dom=Math.max(0.15,ext.length?(rrPct(ext,0.85)||0.15):0.15);
+  // upside green / downside red — sign-aware, since on the percentile basis today's multiple can
+  // sit above the 95th (so "% to high" is negative) or below the 5th (so "% to low" is positive)
+  const uc=v=>v>=0?'#2E7D52':'#C0392B';
+  let html='',total=0;
+  sectorList().forEach(sec=>{
+    const rows=namesIn(sec).filter(t=>PE[t]).map(t=>rrStats(t,months,basis)).filter(Boolean);
+    if(!rows.length)return;
+    total+=rows.length;
+    rows.sort((x,y)=>{if(k==='t')return (x.t<y.t?-1:x.t>y.t?1:0)*dir;
+      const xv=x[k],yv=y[k];if(xv==null&&yv==null)return 0;if(xv==null)return 1;if(yv==null)return -1;return (xv-yv)*dir;});
+    const medSkew=median(rows.map(r=>r.skew));
+    html+='<tr class="secrow"><td colspan="'+(RRCOLS.length+1)+'">'+sec+' &middot; median skew '+(medSkew!=null?sgn(medSkew,0):'—')+'</td></tr>';
+    rows.forEach(r=>{
+      const cls=r.skew>0.10?' class="rr-up"':(r.skew<-0.10?' class="rr-dn"':'');
+      const warn=r.distorted?' <span class="rrwarn" title="'+esc('Range distorted: the high ('+px(r.hi)+') is '+(r.hi/r.med).toFixed(1)+'x the window median ('+px(r.med)+'), so this window includes a near-breakeven period where EPS approached zero and the P/E is not a meaningful valuation. Treat the upside figures as unreliable for this name.')+'">&#9888;</span>':'';
+      html+='<tr'+cls+'><td data-tk="'+r.t+'">'+r.t+warn+'</td>'
+        +'<td class="num">'+px(r.cur)+'</td>'
+        +'<td class="num muted-c">'+px(r.hi)+'</td><td class="num" style="color:'+uc(r.uHi)+'">'+sgn(r.uHi,0)+'</td>'
+        +'<td class="num muted-c">'+px(r.avg)+'</td><td class="num" style="color:'+uc(r.uAvg)+'">'+sgn(r.uAvg,0)+'</td>'
+        +'<td class="num muted-c">'+px(r.lo)+'</td><td class="num" style="color:'+uc(r.uLo)+'">'+sgn(r.uLo,0)+'</td>'
+        +'<td class="num"><b>'+sgn(r.skew,0)+'</b></td>'
+        +'<td class="num muted-c" title="'+esc(r.n+' daily observations from '+r.first)+'">'+r.n+'</td>'
+        +'<td style="text-align:center">'+rrBullet(r,dom)+'</td></tr>';
+    });
+  });
+  document.querySelector('#rr-tbl tbody').innerHTML=html;
+  const cnt=document.getElementById('rr-count');if(cnt)cnt.textContent=total+' names · '+wl+' window · '+(basis==='pct'?'5–95 pctile':'true extremes');
+  document.querySelectorAll('#rr-tbl thead th[data-k]').forEach(th=>th.onclick=()=>{const kk=th.dataset.k;
+    if(ST.rrSort.k===kk)ST.rrSort.dir*=-1;else ST.rrSort={k:kk,dir:kk==='t'?1:-1};renderRerate();});
+  document.querySelectorAll('#rr-tbl td[data-tk]').forEach(td=>td.onclick=()=>loadPairFromName(td.dataset.tk));
+}
+(function(){const rr=document.getElementById('rr-range');
+  if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrM=+b.dataset.m;renderRerate();});
+  const rb=document.getElementById('rr-basis');
+  if(rb)rb.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrBasis=b.dataset.b;renderRerate();});})();
 function renderConsistency(){
   ST.conOpen=null;
   const minq=ST.conMinQ,sec=ST.conSec;
@@ -1185,18 +1336,35 @@ function sparkSVG(ps){
     '<polyline points="'+pts+'" fill="none" stroke="var(--series)" stroke-width="1.5" vector-effect="non-scaling-stroke"/>'+
     '<circle cx="'+x(v.length-1).toFixed(1)+'" cy="'+y(cur).toFixed(1)+'" r="3" fill="'+col+'" vector-effect="non-scaling-stroke"/></svg>';
 }
+// Own-history series for the Grid: each point is the name's forward P/E expressed as a % deviation
+// from its OWN average over the selected window, so the dashed 0-line is that average (not a peer).
+// Returns an already-windowed series; sliceMonths() over it later is a harmless no-op.
+function ownDevWindow(t,months){
+  const a=PE[t],EMPTY={ser:{idx:[],val:[]},avg:null};
+  if(!a)return EMPTY;
+  const idx=[],val=[];
+  for(let i=0;i<N;i++)if(a[i]!=null){idx.push(i);val.push(a[i]);}
+  if(!val.length)return EMPTY;
+  const w=sliceMonths({idx,val},months);
+  if(w.val.length<2)return EMPTY;
+  const avg=w.val.reduce((s,x)=>s+x,0)/w.val.length;
+  if(!(avg>0))return EMPTY;
+  return {ser:{idx:w.idx,val:w.val.map(v=>v/avg-1)},avg};
+}
 function gridPairs(sec){const out=[],seen=new Set();CLUSTERS.forEach(s=>{const mem=[...s].filter(t=>PE[t]&&SECOF[t]===sec);for(let i=0;i<mem.length;i++)for(let j=i+1;j<mem.length;j++){const k=mem[i]<mem[j]?mem[i]+'|'+mem[j]:mem[j]+'|'+mem[i];if(!seen.has(k)){seen.add(k);out.push([mem[i],mem[j]]);}}});return out;}
 function loadPairAgg(name,sec,mode){ST.A=name;ST.aSec=SECOF[name]||sec;ST.B='~'+mode+'~'+sec;ST.bSec=sec;initPairControls();switchTab('pairs');renderPairs();}
 function loadPairAA(secA,secB,mode){ST.A='~'+mode+'~'+secA;ST.aSec=secA;ST.B='~'+mode+'~'+secB;ST.bSec=secB;initPairControls();switchTab('pairs');renderPairs();}
 function gcardHTML(c,wl){const cls=c.s.cur>=0?'pos':'neg',ws=sliceMonths(c.full,ST.gridM);
-  return '<div class="gcard'+(c.hero?' ghero':'')+'" '+(c.hero?'data-hero="1"':'data-i="'+c.i+'"')+'><div class="gcard-top"><span class="gcard-ttl" title="'+esc(c.tip||c.ttl)+'">'+c.ttl+'</span><span class="gcard-cur '+cls+'">'+sgn(c.s.cur)+'</span></div>'+sparkSVG(ws)+'<div class="gcard-foot"><span>'+c.s.pile.toFixed(0)+'th pctile'+(c.hero?' · group vs group':'')+'</span><span>'+wl+' · n='+c.s.n+'</span></div></div>';}
+  const foot=c.own&&c.avgPE!=null?('avg '+px(c.avgPE)+' · '+c.s.pile.toFixed(0)+'th pctile'):(c.s.pile.toFixed(0)+'th pctile'+(c.hero?' · group vs group':''));
+  return '<div class="gcard'+(c.hero?' ghero':'')+'" '+(c.hero?'data-hero="1"':'data-i="'+c.i+'"')+'><div class="gcard-top"><span class="gcard-ttl" title="'+esc(c.tip||c.ttl)+'">'+c.ttl+'</span><span class="gcard-cur '+cls+'">'+sgn(c.s.cur)+'</span></div>'+sparkSVG(ws)+'<div class="gcard-foot"><span>'+foot+'</span><span>'+wl+' · n='+c.s.n+'</span></div></div>';}
 function renderGrid(){
   const sec=ST.gridSec,modeRaw=ST.gridMode,wl=ST.gridM?(ST.gridM/12+'y'):'max';
   const cmp=(ST.gridCmp&&ST.gridCmp!==sec)?ST.gridCmp:'';
-  // curated-pairs mode is intra-sector only; disable it while comparing across sub-sectors
-  const pb=document.querySelector('#grid-mode button[data-mode="pairs"]');
-  if(pb){pb.disabled=!!cmp;pb.style.opacity=cmp?'.4':'';pb.style.cursor=cmp?'not-allowed':'';}
-  if(cmp&&modeRaw==='pairs'){ST.gridMode='med';document.querySelectorAll('#grid-mode button').forEach(x=>x.setAttribute('aria-selected',x.dataset.mode==='med'));}
+  // curated-pairs and own-history are both intra-name modes; neither applies while comparing
+  // across sub-sectors, so disable them whenever a "Compare to" sub-sector is set
+  ['pairs','own'].forEach(m=>{const b=document.querySelector('#grid-mode button[data-mode="'+m+'"]');
+    if(b){b.disabled=!!cmp;b.style.opacity=cmp?'.4':'';b.style.cursor=cmp?'not-allowed':'';}});
+  if(cmp&&(modeRaw==='pairs'||modeRaw==='own')){ST.gridMode='med';document.querySelectorAll('#grid-mode button').forEach(x=>x.setAttribute('aria-selected',x.dataset.mode==='med'));}
   const wrap=document.getElementById('grid-wrap');
   let hero='',cards=[];
   if(cmp){
@@ -1207,6 +1375,11 @@ function renderGrid(){
     cards=namesIn(sec).filter(t=>PE[t]).map(t=>{const full=pairSeriesG(t,benchB);return {a:t,b:benchB,agg:true,mode:mode,bsec:cmp,ttl:legRoot(t)+' ÷ '+cmp+' '+lab,tip:t+' / '+cmp+' '+lab,full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
   } else if(modeRaw==='pairs'){
     cards=gridPairs(sec).map(p=>{const a=p[0],b=p[1],full=pairSeriesG(a,b);return {a:a,b:b,agg:false,ttl:legRoot(a)+' ÷ '+legRoot(b),tip:a+' / '+b,full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
+  } else if(modeRaw==='own'){
+    cards=namesIn(sec).filter(t=>PE[t]).map(t=>{const w=ownDevWindow(t,ST.gridM);
+      return {a:t,own:true,avgPE:w.avg,ttl:legRoot(t)+' vs own '+wl+' avg',
+              tip:t+' — forward P/E vs its own '+wl+' average'+(w.avg?' ('+px(w.avg)+')':''),
+              full:w.ser,s:w.ser.val.length?stat(w.ser.val):null};});
   } else {
     const mode=modeRaw,lab=mode==='avg'?'avg':'median',bench='~'+mode+'~'+sec;
     cards=namesIn(sec).filter(t=>PE[t]).map(t=>{const full=pairSeriesG(t,bench);return {a:t,b:bench,agg:true,mode:mode,bsec:sec,ttl:legRoot(t)+' ÷ '+sec+' '+lab,tip:t+' / '+sec+' '+lab+' (ex-self)',full:full,s:stat(sliceMonths(full,ST.gridM).val)};});
@@ -1215,8 +1388,13 @@ function renderGrid(){
   if(!hero&&!cards.length){wrap.innerHTML='<div class="gnone">No '+(modeRaw==='pairs'?'curated pairs':'names with P/E')+' in '+sec+'.</div>';}
   else{wrap.innerHTML=hero+cards.map(c=>gcardHTML(c,wl)).join('');}
   const h=wrap.querySelector('.ghero');if(h)h.onclick=()=>loadPairAA(sec,cmp,(ST.gridMode==='avg'?'avg':'med'));
-  wrap.querySelectorAll('.gcard[data-i]').forEach(el=>{const c=cards[+el.dataset.i];el.onclick=()=>{if(c.agg)loadPairAgg(c.a,c.bsec,c.mode);else loadPairX(c.a,c.b);};});
+  wrap.querySelectorAll('.gcard[data-i]').forEach(el=>{const c=cards[+el.dataset.i];el.onclick=()=>{
+    // own-history cards are single-name, so they open the Name P/E tab rather than Pairs
+    if(c.own){ST.npSec=SECOF[c.a]||'All coverage';ST.npName=c.a;npRefreshNames();switchTab('namepe');renderNamePE();}
+    else if(c.agg)loadPairAgg(c.a,c.bsec,c.mode);else loadPairX(c.a,c.b);};});
   const cnt=document.getElementById('grid-count');if(cnt)cnt.textContent=(cmp?(cards.length+' names vs '+cmp):(modeRaw==='pairs'?cards.length+' pairs':cards.length+' names'));
+  const hint=document.getElementById('grid-hint');
+  if(hint)hint.textContent=(!cmp&&modeRaw==='own')?'click a card to open it in Name P/E':'click a card to open it in Pairs';
 }
 (function(){
   const sel=document.getElementById('grid-sec');
