@@ -308,6 +308,7 @@ footer b{color:var(--muted);}
         <button role="tab" aria-selected="false" data-tab="grid">Grid</button>
         <button role="tab" aria-selected="false" data-tab="coverage">Coverage</button>
         <button role="tab" aria-selected="false" data-tab="rerate">Re-rate</button>
+        <button role="tab" aria-selected="false" data-tab="range">Range</button>
         <button role="tab" aria-selected="false" data-tab="consistency">Consistency</button>
         <button role="tab" aria-selected="false" data-tab="backtest">Backtest</button>
       </div>
@@ -528,6 +529,35 @@ footer b{color:var(--muted);}
     </div>
   </section>
 
+  <!-- ===== RANGE (P/E dispersion / volatility) ===== -->
+  <section class="view" id="view-range" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label>History window</label><div class="ranges" id="vr-range">
+        <button data-m="12">1Y</button><button data-m="36" aria-selected="true">3Y</button><button data-m="60">5Y</button><button data-m="0">Max</button></div></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Click a ticker to chart it &middot; click a column to sort &middot; <b id="vr-count"></b></div>
+    </div>
+
+    <div class="stats" id="vr-cards" style="grid-template-columns:repeat(4,1fr);"></div>
+
+    <div class="fbh" style="margin-top:18px;">Range by sub-sector <span>— median band width across the names in each group, narrowest first</span></div>
+    <div class="panel tblwrap" style="margin-top:10px;padding:0 0 4px;">
+      <table id="vr-sec"><thead></thead><tbody></tbody></table>
+    </div>
+
+    <div class="fbh" style="margin-top:22px;">Every name <span>— grouped by sub-sector</span></div>
+    <div class="panel tblwrap" style="margin-top:10px;padding:0 0 4px;">
+      <table id="vr-tbl"><thead></thead><tbody></tbody></table>
+    </div>
+
+    <div class="note" style="border:0;padding-top:12px;">
+      How <b>wide</b> a band each name's forward P/E has traded in, and how <b>jumpy</b> it has been — two different things, both shown.
+      <b>Band</b> is the headline width measure: the 10th-to-90th-percentile spread of the multiple over the window, expressed as a % of that name's own median, so a 10&times; stock and a 40&times; stock are directly comparable. <b>CV</b> is the classic dispersion measure (standard deviation &divide; mean). <b>Vol</b> is annualised volatility of daily log changes in the multiple — a name can have a wide band but drift there slowly (low Vol), or a narrow band it moves around inside constantly (high Vol).
+      The bar plots each name's band around its own median: the shaded box spans the 10th&ndash;90th percentile, the thin whiskers reach the full min&ndash;max, the dark tick is <b>today's</b> multiple, and the dashed centre is the median. All rows share one scale, set to the 85th percentile of the <i>box</i> half-widths — not the outright widest name, which would flatten every other bar into a sliver, and not the whiskers, which would squash the typical box to a fifth of the frame. A &#9654; chevron marks a <b>box</b> that runs past the edge (~15% of names); whiskers simply clamp at the edge, so a whisker sitting flush against the frame is itself the &ldquo;reaches further&rdquo; signal — the exact min/max are in each bar's tooltip.
+      A <span class="rrwarn">&#9888;</span> means the band is inflated by a near-breakeven stretch, where EPS approached zero and the P/E blew up without saying anything about valuation — that is why the fintech names dominate the wide end, and it is a data artifact rather than genuine multiple volatility.
+      <b>Caveat:</b> names listed for less than the window (recent IPOs) fall back to their full available history, shown by a shorter <span class="num">n</span> — their bands cover less time and are not strictly comparable, which matters most on the <b>Max</b> setting. Vol is computed on the weekday series, which forward-fills market holidays (~5% of days show no change), so it is very slightly understated across the board.
+    </div>
+  </section>
+
   <!-- ===== CONSISTENCY ===== -->
   <section class="view" id="view-consistency" role="tabpanel">
     <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
@@ -647,7 +677,7 @@ function sectorMetrics(sec){
 
 // ---------- state ----------
 const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pairs',
-          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',rrM:36,rrBasis:'pct',rrSort:{k:'skew',dir:-1},npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
+          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',rrM:36,rrBasis:'pct',rrSort:{k:'skew',dir:-1},vrM:36,vrSort:{k:'band',dir:1},npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
 
 function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
 function sectorList(){return Object.keys(SEC);}
@@ -1082,6 +1112,7 @@ function switchTab(t){
   if(t==='software')renderSW();
   if(t==='coverage')renderCoverage();
   if(t==='rerate')renderRerate();
+  if(t==='range')renderRange();
   if(t==='consistency')renderConsistency();
   if(t==='backtest')renderBacktest();
 }
@@ -1286,6 +1317,130 @@ function renderRerate(){
   if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrM=+b.dataset.m;renderRerate();});
   const rb=document.getElementById('rr-basis');
   if(rb)rb.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrBasis=b.dataset.b;renderRerate();});})();
+// ===== RANGE TAB (how wide / how jumpy each name's forward P/E has been) =====
+// Band = (p90-p10)/median — a scale-free width, so a 10x and a 40x name compare directly.
+// Vol  = annualised stdev of daily log changes — width and jumpiness are different things.
+function volStats(t,months){
+  const a=PE[t];if(!a)return null;
+  const idx=[],val=[];
+  for(let i=0;i<N;i++)if(a[i]!=null){idx.push(i);val.push(a[i]);}
+  if(!val.length)return null;
+  const w=sliceMonths({idx,val},months),v=w.val,n=v.length;
+  if(n<20)return null;                                    // too little history to describe a band
+  const srt=v.slice().sort((p,q)=>p-q);
+  const med=rrPct(srt,0.5),p10=rrPct(srt,0.10),p90=rrPct(srt,0.90),mn=srt[0],mx=srt[n-1];
+  if(!(med>0))return null;
+  const mean=v.reduce((s,x)=>s+x,0)/n;
+  const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));
+  const rets=[];for(let k=1;k<n;k++)if(v[k]>0&&v[k-1]>0)rets.push(Math.log(v[k]/v[k-1]));
+  let vol=null;
+  if(rets.length>10){const rm=rets.reduce((s,x)=>s+x,0)/rets.length;
+    vol=Math.sqrt(rets.reduce((s,x)=>s+(x-rm)**2,0)/(rets.length-1))*Math.sqrt(252);}
+  // Same near-breakeven distortion test used on the Re-rate tab: when the top of the band is a
+  // large multiple of the median, EPS approached zero and the P/E stopped measuring valuation.
+  return {t,sec:SECOF[t]||'',cur:v[n-1],med,p10,p90,mn,mx,mean,
+          cv:mean>0?sd/mean:null,band:(p90-p10)/med,full:(mx-mn)/med,vol,n,first:D[w.idx[0]],
+          distorted:p90/med>2.5};
+}
+// Box-and-whisker around the name's own median: box = p10..p90, whiskers = min..max,
+// dark tick = today, dashed centre = median. `dom` is shared across rows for comparability.
+function vrBar(r,dom){
+  const W=168,H=20,ml=3,mr=3,pw=W-ml-mr,mid=ml+pw/2,half=pw/2;
+  const rel=x=>(x/r.med-1);
+  const X=v=>mid+half*Math.max(-1,Math.min(1,dom>0?v/dom:0));
+  const xLo=X(rel(r.p10)),xHi=X(rel(r.p90)),xMn=X(rel(r.mn)),xMx=X(rel(r.mx)),xCur=X(rel(r.cur));
+  // Chevron marks the p10-p90 BOX overflowing the frame — that is the headline metric being
+  // truncated. Whiskers simply clamp at the edge (a whisker sitting exactly on the frame edge is
+  // itself the "extends further" signal); scaling to whiskers instead would squash the typical
+  // box to ~a fifth of the half-width and make narrow-vs-wide unreadable.
+  const clip=(side,col)=>{const e=side>0?W-mr:ml,d=side>0?-4:4;
+    return '<path d="M'+e+' 6 L'+(e+d)+' 10 L'+e+' 14 Z" fill="'+col+'"/>';};
+  const tip=esc(r.t+' — band '+sgn(r.band,0)+' of median '+px(r.med)+
+    ' · p10 '+px(r.p10)+' / p90 '+px(r.p90)+' · min '+px(r.mn)+' / max '+px(r.mx)+
+    ' · today '+px(r.cur)+(r.vol!=null?' · vol '+sgn(r.vol,0):''));
+  return '<svg class="rrb" viewBox="0 0 '+W+' '+H+'" width="'+W+'" height="'+H+'" preserveAspectRatio="none"><title>'+tip+'</title>'
+    +'<line x1="'+xMn.toFixed(1)+'" y1="10" x2="'+xMx.toFixed(1)+'" y2="10" stroke="var(--line2)" stroke-width="1"/>'
+    +'<rect x="'+Math.min(xLo,xHi).toFixed(1)+'" y="6" width="'+Math.max(0.8,Math.abs(xHi-xLo)).toFixed(1)+'" height="8" fill="rgba(21,105,122,.24)"/>'
+    +'<line x1="'+mid+'" y1="4" x2="'+mid+'" y2="16" stroke="var(--faint)" stroke-width="1" stroke-dasharray="2 2"/>'
+    +'<line x1="'+xCur.toFixed(1)+'" y1="2.5" x2="'+xCur.toFixed(1)+'" y2="17.5" stroke="var(--ink2)" stroke-width="1.6"/>'
+    +(rel(r.p90)>dom?clip(1,'rgba(21,105,122,.75)'):'')+(-rel(r.p10)>dom?clip(-1,'rgba(21,105,122,.75)'):'')
+    +'</svg>';
+}
+const VRCOLS=[['t','Ticker'],['cur','Curr'],['p10','Low (p10)'],['med','Median'],['p90','High (p90)'],
+  ['band','Band %'],['cv','CV %'],['vol','Vol %'],['n','n']];
+function renderRange(){
+  const months=ST.vrM,wl=months?(months/12)+'Y':'Max';
+  document.querySelectorAll('#vr-range button').forEach(b=>b.setAttribute('aria-selected',+b.dataset.m===months));
+  const k=ST.vrSort.k,dir=ST.vrSort.dir;
+  const all=[];sectorList().forEach(s=>namesIn(s).filter(t=>PE[t]).forEach(t=>{const r=volStats(t,months);if(r)all.push(r);}));
+  if(!all.length){document.querySelector('#vr-tbl tbody').innerHTML='';return;}
+  // Shared scale = p85 of the p10-p90 BOX half-widths. Two reasons not to use the outright max or
+  // the min-max whiskers: one blown-up name (MQ US runs to +634%) would flatten every other bar,
+  // and whisker-scaling squashes the typical box to ~a fifth of the half-width. On box-scaling the
+  // median name fills roughly half the frame, which is what makes narrow-vs-wide legible.
+  const ext=all.map(r=>Math.max(Math.abs(r.p90/r.med-1),Math.abs(r.p10/r.med-1))).sort((a,b)=>a-b);
+  const dom=Math.max(0.10,rrPct(ext,0.85)||0.10);
+
+  // ---- headline cards: narrowest / widest name and sub-sector ----
+  const byBand=all.slice().sort((a,b)=>a.band-b.band);
+  const clean=byBand.filter(r=>!r.distorted);
+  const secAgg=sectorList().map(s=>{const m=all.filter(r=>r.sec===s);if(!m.length)return null;
+    const bs=m.map(r=>r.band).sort((a,b)=>a-b),vs=m.map(r=>r.vol).filter(x=>x!=null).sort((a,b)=>a-b),
+          cs=m.map(r=>r.cv).filter(x=>x!=null).sort((a,b)=>a-b);
+    const srt=m.slice().sort((a,b)=>a.band-b.band);
+    return {sec:s,n:m.length,band:rrPct(bs,0.5),vol:vs.length?rrPct(vs,0.5):null,cv:cs.length?rrPct(cs,0.5):null,
+            narrow:srt[0],wide:srt[srt.length-1],flags:m.filter(r=>r.distorted).length};}).filter(Boolean);
+  const secByBand=secAgg.slice().sort((a,b)=>a.band-b.band);
+  const card=(k,v,s,c)=>'<div class="stat"><div class="k">'+k+'</div><div class="v num"'+(c?' style="color:'+c+'"':'')+'>'+v+'</div><div class="k" style="margin:5px 0 0;text-transform:none;letter-spacing:0;font-weight:500;">'+s+'</div></div>';
+  document.getElementById('vr-cards').innerHTML=
+    card('Narrowest name',byBand[0].t,'band '+sgn(byBand[0].band,0)+' of median '+px(byBand[0].med),'#2E7D52')
+   +card('Widest name',byBand[byBand.length-1].t,'band '+sgn(byBand[byBand.length-1].band,0)+(byBand[byBand.length-1].distorted?' · near-breakeven ⚠':''),'#C0392B')
+   +card('Narrowest sub-sector',secByBand[0].sec,'median band '+sgn(secByBand[0].band,0)+' · '+secByBand[0].n+' names','#2E7D52')
+   +card('Widest sub-sector',secByBand[secByBand.length-1].sec,'median band '+sgn(secByBand[secByBand.length-1].band,0)+' · '+secByBand[secByBand.length-1].n+' names','#C0392B');
+
+  // ---- sub-sector summary ----
+  document.querySelector('#vr-sec thead').innerHTML='<tr><th style="text-align:left;cursor:default">Sub-sector</th><th style="cursor:default">Names</th>'
+    +'<th style="cursor:default">Median band</th><th style="cursor:default">Median CV</th><th style="cursor:default">Median vol</th>'
+    +'<th style="cursor:default">Narrowest</th><th style="cursor:default">Widest</th></tr>';
+  document.querySelector('#vr-sec tbody').innerHTML=secByBand.map(s=>
+    '<tr><td style="text-align:left;font-weight:600">'+s.sec+'</td><td class="num muted-c">'+s.n+'</td>'
+    +'<td class="num"><b>'+sgn(s.band,0)+'</b></td>'
+    +'<td class="num muted-c">'+(s.cv!=null?sgn(s.cv,0):'—')+'</td>'
+    +'<td class="num muted-c">'+(s.vol!=null?sgn(s.vol,0):'—')+'</td>'
+    +'<td class="num" style="color:#2E7D52">'+s.narrow.t+' <span class="muted-c">'+sgn(s.narrow.band,0)+'</span></td>'
+    +'<td class="num" style="color:#C0392B">'+s.wide.t+' <span class="muted-c">'+sgn(s.wide.band,0)+'</span>'+(s.wide.distorted?' <span class="rrwarn">&#9888;</span>':'')+'</td></tr>').join('');
+
+  // ---- name-level table, grouped by sub-sector ----
+  document.querySelector('#vr-tbl thead').innerHTML='<tr>'
+    +VRCOLS.map(c=>'<th data-k="'+c[0]+'">'+c[1]+(k===c[0]?'<span class="ar">'+(dir>0?'▲':'▼')+'</span>':'')+'</th>').join('')
+    +'<th style="text-align:center;cursor:default">Band around median &middot; ▏today</th></tr>';
+  let html='';
+  secByBand.forEach(s=>{
+    const rows=all.filter(r=>r.sec===s.sec);
+    rows.sort((x,y)=>{if(k==='t')return (x.t<y.t?-1:x.t>y.t?1:0)*dir;
+      const xv=x[k],yv=y[k];if(xv==null&&yv==null)return 0;if(xv==null)return 1;if(yv==null)return -1;return (xv-yv)*dir;});
+    html+='<tr class="secrow"><td colspan="'+(VRCOLS.length+1)+'">'+s.sec+' &middot; median band '+sgn(s.band,0)+'</td></tr>';
+    rows.forEach(r=>{
+      const warn=r.distorted?' <span class="rrwarn" title="'+esc('Band inflated by a near-breakeven period: the 90th-percentile multiple ('+px(r.p90)+') is '+(r.p90/r.med).toFixed(1)+'x the median ('+px(r.med)+'), i.e. EPS approached zero and the P/E blew up. This is a data artifact, not genuine multiple volatility.')+'">&#9888;</span>':'';
+      html+='<tr><td data-tk="'+r.t+'">'+r.t+warn+'</td>'
+        +'<td class="num">'+px(r.cur)+'</td>'
+        +'<td class="num muted-c">'+px(r.p10)+'</td><td class="num muted-c">'+px(r.med)+'</td><td class="num muted-c">'+px(r.p90)+'</td>'
+        +'<td class="num"><b>'+sgn(r.band,0)+'</b></td>'
+        +'<td class="num muted-c">'+(r.cv!=null?sgn(r.cv,0):'—')+'</td>'
+        +'<td class="num muted-c">'+(r.vol!=null?sgn(r.vol,0):'—')+'</td>'
+        +'<td class="num muted-c" title="'+esc(r.n+' daily observations from '+r.first)+'">'+r.n+'</td>'
+        +'<td style="text-align:center">'+vrBar(r,dom)+'</td></tr>';
+    });
+  });
+  document.querySelector('#vr-tbl tbody').innerHTML=html;
+  const cnt=document.getElementById('vr-count');
+  if(cnt)cnt.textContent=all.length+' names · '+wl+' window'+(byBand.filter(r=>r.distorted).length?' · '+byBand.filter(r=>r.distorted).length+' flagged':'');
+  document.querySelectorAll('#vr-tbl thead th[data-k]').forEach(th=>th.onclick=()=>{const kk=th.dataset.k;
+    if(ST.vrSort.k===kk)ST.vrSort.dir*=-1;else ST.vrSort={k:kk,dir:kk==='t'?1:1};renderRange();});
+  document.querySelectorAll('#vr-tbl td[data-tk]').forEach(td=>td.onclick=()=>loadPairFromName(td.dataset.tk));
+}
+(function(){const vr=document.getElementById('vr-range');
+  if(vr)vr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.vrM=+b.dataset.m;renderRange();});})();
 function renderConsistency(){
   ST.conOpen=null;
   const minq=ST.conMinQ,sec=ST.conSec;
