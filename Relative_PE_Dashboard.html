@@ -536,6 +536,9 @@ footer b{color:var(--muted);}
         <button data-p="12">1Y</button><button data-p="36" aria-selected="true">3Y</button><button data-p="60">5Y</button><button data-p="0">Max</button></div></div>
       <div class="ctl"><label>Calendar year</label><div class="ranges" id="vr-year">
         <button data-p="Y2024">2024</button><button data-p="Y2025">2025</button><button data-p="Y2026">2026 YTD</button></div></div>
+      <div class="ctl"><label>Quarter</label><div class="ranges" id="vr-q"></div></div>
+      <div class="ctl"><label>Comparison columns</label><div class="ranges" id="vr-cmp">
+        <button data-c="year" aria-selected="true">By year</button><button data-c="q">By quarter</button></div></div>
       <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Click a ticker to chart it &middot; click a column to sort &middot; <b id="vr-count"></b></div>
     </div>
 
@@ -556,8 +559,9 @@ footer b{color:var(--muted);}
       <b>Band</b> is the headline width measure: the 10th-to-90th-percentile spread of the multiple over the window, expressed as a % of that name's own median, so a 10&times; stock and a 40&times; stock are directly comparable. <b>CV</b> is the classic dispersion measure (standard deviation &divide; mean). <b>Vol</b> is annualised volatility of daily log changes in the multiple — a name can have a wide band but drift there slowly (low Vol), or a narrow band it moves around inside constantly (high Vol).
       The bar plots each name's band around its own median: the shaded box spans the 10th&ndash;90th percentile, the thin whiskers reach the full min&ndash;max, the dark tick is <b>today's</b> multiple, and the dashed centre is the median. All rows share one scale, set to the 85th percentile of the <i>box</i> half-widths — not the outright widest name, which would flatten every other bar into a sliver, and not the whiskers, which would squash the typical box to a fifth of the frame. A &#9654; chevron marks a <b>box</b> that runs past the edge (~15% of names); whiskers simply clamp at the edge, so a whisker sitting flush against the frame is itself the &ldquo;reaches further&rdquo; signal — the exact min/max are in each bar's tooltip.
       A <span class="rrwarn">&#9888;</span> means the band is inflated by a near-breakeven stretch, where EPS approached zero and the P/E blew up without saying anything about valuation — that is why the fintech names dominate the wide end, and it is a data artifact rather than genuine multiple volatility.
-      <b>Rolling window vs calendar year.</b> The <b>1Y/3Y/5Y/Max</b> buttons look back from today; the <b>2024 / 2025 / 2026 YTD</b> buttons are exact calendar-year slices, which is what you want for &ldquo;was the band wider in 2024 than it is now&rdquo;. Whichever you pick drives the headline cards, the <b>Band</b> column and the bars. The <b>Band by year</b> columns are always computed on the three calendar years regardless of that choice, so the comparison stays on screen without flipping the toggle — the 2026 figure is coloured <span style="color:#2E7D52;font-weight:600">green</span> when the band has <b>narrowed</b> versus 2024 and <span style="color:#C0392B;font-weight:600">red</span> when it has <b>widened</b>, and the sub-sector table carries the same comparison plus the <b>Δ band</b> in percentage points.
-      Note 2026 is a part-year (January to the as-of date), so it covers fewer observations than a full year and will tend to show a slightly narrower band for that reason alone — compare it directionally rather than treating a small narrowing as decisive.
+      <b>Rolling window vs calendar period.</b> The <b>1Y/3Y/5Y/Max</b> buttons look back from today; the <b>2024 / 2025 / 2026 YTD</b> and <b>1Q26 / 2Q26 / 3Q26 QTD</b> buttons are exact calendar slices, which is what you want for &ldquo;was the band wider in 2024, or in 1Q, than it is now&rdquo;. Whichever you pick drives the headline cards, the <b>Band</b> column and the bars. (The quarter row's <b>2026 YTD</b> button is the same slice as the year row's, so both highlight together.)
+      The <b>Band by year / by quarter</b> columns are always computed regardless of that choice, so the comparison stays on screen without flipping the toggle — use <b>Comparison columns</b> to switch between the three calendar years and this year's quarters. The endpoint figure is coloured <span style="color:#2E7D52;font-weight:600">green</span> when the band has <b>narrowed</b> and <span style="color:#C0392B;font-weight:600">red</span> when it has <b>widened</b>, and the sub-sector table carries the same comparison plus the <b>Δ band</b> in percentage points. In quarter mode that Δ is <b>the last complete quarter versus 1Q</b> — deliberately not the running QTD quarter, which holds only a part-quarter of observations and would book a mechanical narrowing as a real one, and not the YTD column, which contains the others and would make the comparison circular. QTD is still shown as a column to eyeball; it is just not what gets differenced.
+      <b>Shorter periods bias the band narrower.</b> This matters far more for quarters than for years. A full quarter is roughly 62 trading days and a part-quarter fewer still, against ~250 for a year: with fewer observations there is simply less time for a multiple to travel, so a quarter will print a tighter 10th&ndash;90th spread than a year even when nothing about the name has changed. Compare quarter against quarter, and year against year — never a quarter against a year — and read a small narrowing as noise rather than a signal. The per-name comparison cell tooltips carry the observation count behind every figure so you can see what each is built on. A period with fewer than 20 observations is dropped rather than shown, which is why a quarter that has only just begun returns nothing.
       <b>Caveat:</b> names listed for less than the window (recent IPOs) fall back to their full available history, shown by a shorter <span class="num">n</span> — their bands cover less time and are not strictly comparable, which matters most on the <b>Max</b> setting; a name that listed mid-2025 shows &mdash; for 2024 and only a partial 2025. Vol is computed on the weekday series, which forward-fills market holidays (~5% of days show no change), so it is very slightly understated across the board.
     </div>
   </section>
@@ -681,7 +685,7 @@ function sectorMetrics(sec){
 
 // ---------- state ----------
 const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pairs',
-          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',rrM:36,rrBasis:'pct',rrSort:{k:'skew',dir:-1},vrM:36,vrSort:{k:'band',dir:1},npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
+          sSort:{k:'gap',dir:1},sSec:'Exchanges',mSec:'Exchanges',mMode:'curr',fMode:'vc',btH:6,btThr:1.0,btSort:{k:'ic',dir:-1},btFilt:'all',btCost:10,btBorrow:50,covAgg:'mean',peer:{},covSort:{k:'vc',dir:1},conSort:{k:'hit',dir:-1},conMinQ:10,conSec:'all',conOpen:null,gridSec:'Exchanges',gridMode:'med',gridM:36,gridCmp:'',rrM:36,rrBasis:'pct',rrSort:{k:'skew',dir:-1},vrM:36,vrCmp:'year',vrSort:{k:'band',dir:1},npSec:'Exchanges',npName:'CME US',npM:0,measA:null,measB:null,_measKey:'',swM:0,swA:'JKHY US',swB:'~med'};
 
 function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
 function sectorList(){return Object.keys(SEC);}
@@ -1324,10 +1328,18 @@ function renderRerate(){
 // ===== RANGE TAB (how wide / how jumpy each name's forward P/E has been) =====
 // Band = (p90-p10)/median — a scale-free width, so a 10x and a 40x name compare directly.
 // Vol  = annualised stdev of daily log changes — width and jumpiness are different things.
-// A period is either a trailing-month count (12/36/60, 0 = max) or a calendar year 'Y2025'.
-// Calendar years answer a different question from rolling windows — "was the band wider in 2024
-// than it is now" — so the year slice is an exact date filter, not a lookback from today.
+// A period is a trailing-month count (12/36/60, 0 = max), a calendar year 'Y2025', or a
+// calendar quarter 'Q2026-2'. Calendar slices answer a different question from rolling windows
+// — "was the band wider in 2024 / in 1Q than it is now" — so they are exact date filters
+// rather than a lookback from today.
+function qOf(d){return Math.floor((+d.slice(5,7)-1)/3)+1;}   // ISO date -> 1..4
 function vrSlice(idx,val,period){
+  if(typeof period==='string'&&period.charAt(0)==='Q'){
+    const y=period.slice(1,5),q=+period.slice(6),oi=[],ov=[];
+    for(let k=0;k<idx.length;k++){const d=D[idx[k]];
+      if(d.slice(0,4)===y&&qOf(d)===q){oi.push(idx[k]);ov.push(val[k]);}}
+    return {idx:oi,val:ov};
+  }
   if(typeof period==='string'&&period.charAt(0)==='Y'){
     const y=period.slice(1),oi=[],ov=[];
     for(let k=0;k<idx.length;k++)if(D[idx[k]].slice(0,4)===y){oi.push(idx[k]);ov.push(val[k]);}
@@ -1336,6 +1348,11 @@ function vrSlice(idx,val,period){
   return sliceMonths({idx,val},period);
 }
 function vrLabel(p){
+  if(typeof p==='string'&&p.charAt(0)==='Q'){
+    const y=p.slice(1,5),q=+p.slice(6),d=D[N-1];
+    // The running quarter is flagged QTD so a part-quarter is never read as a whole one.
+    return q+'Q'+y.slice(2)+((d.slice(0,4)===y&&qOf(d)===q)?' QTD':'');
+  }
   if(typeof p==='string'&&p.charAt(0)==='Y'){const y=p.slice(1);return y+(y===D[N-1].slice(0,4)?' YTD':'');}
   return p?(p/12)+'Y':'Max';
 }
@@ -1388,16 +1405,42 @@ function vrBar(r,dom){
 const VRCOLS=[['t','Ticker'],['cur','Curr'],['p10','Low (p10)'],['med','Median'],['p90','High (p90)'],
   ['band','Band %'],['cv','CV %'],['vol','Vol %'],['n','n']];
 const VRYEARS=['Y2024','Y2025','Y2026'];   // the calendar years shown side-by-side for comparison
+// The always-on comparison columns. Year mode contrasts 2024/2025/2026; quarter mode walks the
+// current year's quarters plus the YTD, so "has the band moved through this year" is answerable
+// without flipping the period toggle. `di` names the two entries the Δ column differences.
+// In quarter mode that is the last COMPLETE quarter vs 1Q — not the running QTD quarter, which
+// holds roughly half a quarter's observations and would book a mechanical narrowing as a real
+// one, and not the YTD figure, which spans the others and would make the comparison circular.
+// The QTD column is still on screen to eyeball; it is just not what gets differenced.
+function vrCmpSet(){
+  if(ST.vrCmp==='q'){
+    const d=D[N-1],y=+d.slice(0,4),q=qOf(d),ps=[];
+    for(let i=1;i<=q;i++)ps.push('Q'+y+'-'+i);
+    ps.push('Y'+y);
+    return {ps,di:[0,Math.max(0,q-2)]};   // q-2 = last complete quarter; q=1 => no Δ
+  }
+  return {ps:VRYEARS.slice(),di:[0,VRYEARS.length-1]};
+}
 function renderRange(){
   const per=ST.vrM,wl=vrLabel(per);
-  document.querySelectorAll('#vr-range button,#vr-year button').forEach(b=>
+  document.querySelectorAll('#vr-range button,#vr-year button,#vr-q button').forEach(b=>
     b.setAttribute('aria-selected',String(b.dataset.p)===String(per)));
   const k=ST.vrSort.k,dir=ST.vrSort.dir;
   const all=[];sectorList().forEach(s=>namesIn(s).filter(t=>PE[t]).forEach(t=>{const r=volStats(t,per);if(r)all.push(r);}));
-  // Per-name band in each calendar year, computed regardless of the selected period so the
+  // Per-name band in each comparison period, computed regardless of the selected period so the
   // "has the band changed" comparison is always on screen without having to flip the toggle.
-  const yb={};all.forEach(r=>{yb[r.t]=VRYEARS.map(y=>{const s=volStats(r.t,y);return s?s.band:null;});});
-  if(!all.length){document.querySelector('#vr-tbl tbody').innerHTML='';return;}
+  // n is carried too: a part-quarter covers far fewer observations than a year, and the tooltip
+  // is where that gets disclosed rather than left to be inferred from a bare percentage.
+  const CMP=vrCmpSet(),cps=CMP.ps,di=CMP.di;
+  const yb={};all.forEach(r=>{yb[r.t]=cps.map(y=>{const s=volStats(r.t,y);return s?{b:s.band,n:s.n}:null;});});
+  if(!all.length){
+    document.querySelector('#vr-tbl tbody').innerHTML='';document.querySelector('#vr-tbl thead').innerHTML='';
+    document.querySelector('#vr-sec tbody').innerHTML='';document.querySelector('#vr-sec thead').innerHTML='';
+    document.getElementById('vr-cards').innerHTML='<div class="stat" style="grid-column:1/-1"><div class="k">No data</div>'
+      +'<div class="v" style="font-size:15px">'+wl+' holds fewer than 20 observations</div>'
+      +'<div class="k" style="margin:5px 0 0;text-transform:none;letter-spacing:0;font-weight:500;">A band needs at least 20 daily points to mean anything — pick a longer period.</div></div>';
+    const c0=document.getElementById('vr-count');if(c0)c0.textContent='0 names · '+wl;
+    return;}
   // Shared scale = p85 of the p10-p90 BOX half-widths. Two reasons not to use the outright max or
   // the min-max whiskers: one blown-up name (MQ US runs to +634%) would flatten every other bar,
   // and whisker-scaling squashes the typical box to ~a fifth of the half-width. On box-scaling the
@@ -1424,17 +1467,17 @@ function renderRange(){
 
   // ---- sub-sector summary ----
   const medOf=a=>{const c=a.filter(x=>x!=null).sort((p,q)=>p-q);return c.length?rrPct(c,0.5):null;};
-  const yLab=VRYEARS.map(vrLabel);
+  const yLab=cps.map(vrLabel);
   document.querySelector('#vr-sec thead').innerHTML='<tr><th style="text-align:left;cursor:default">Sub-sector</th><th style="cursor:default">Names</th>'
     +'<th style="cursor:default">Median band<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+wl+'</span></th>'
     +'<th style="cursor:default">Median CV</th><th style="cursor:default">Median vol</th>'
     +yLab.map(l=>'<th style="cursor:default">'+l+'</th>').join('')
-    +'<th style="cursor:default">Δ band<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+yLab[2]+' vs '+yLab[0]+'</span></th>'
+    +'<th style="cursor:default">Δ band<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+(di[1]>di[0]?yLab[di[1]]+' vs '+yLab[di[0]]:'n/a')+'</span></th>'
     +'<th style="cursor:default">Narrowest</th><th style="cursor:default">Widest</th></tr>';
   document.querySelector('#vr-sec tbody').innerHTML=secByBand.map(s=>{
     const m=all.filter(r=>r.sec===s.sec);
-    const ym=VRYEARS.map((_,i)=>medOf(m.map(r=>yb[r.t][i])));
-    const d=(ym[0]!=null&&ym[2]!=null)?ym[2]-ym[0]:null;   // narrower band => negative => green
+    const ym=cps.map((_,i)=>medOf(m.map(r=>yb[r.t][i]&&yb[r.t][i].b)));
+    const d=(di[1]>di[0]&&ym[di[0]]!=null&&ym[di[1]]!=null)?ym[di[1]]-ym[di[0]]:null;   // narrower band => negative => green
     return '<tr><td style="text-align:left;font-weight:600">'+s.sec+'</td><td class="num muted-c">'+s.n+'</td>'
     +'<td class="num"><b>'+sgn(s.band,0)+'</b></td>'
     +'<td class="num muted-c">'+(s.cv!=null?sgn(s.cv,0):'—')+'</td>'
@@ -1450,7 +1493,7 @@ function renderRange(){
   // ---- name-level table, grouped by sub-sector ----
   document.querySelector('#vr-tbl thead').innerHTML='<tr>'
     +VRCOLS.map(c=>'<th data-k="'+c[0]+'">'+(c[0]==='band'?c[1]+'<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+wl+'</span>':c[1])+(k===c[0]?'<span class="ar">'+(dir>0?'▲':'▼')+'</span>':'')+'</th>').join('')
-    +'<th style="cursor:default">Band by year<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+yLab.join(' · ')+'</span></th>'
+    +'<th style="cursor:default">Band by '+(ST.vrCmp==='q'?'quarter':'year')+'<br><span style="font-weight:400;text-transform:none;letter-spacing:0">'+yLab.join(' · ')+'</span></th>'
     +'<th style="text-align:center;cursor:default">Band around median &middot; ▏today</th></tr>';
   let html='';
   secByBand.forEach(s=>{
@@ -1467,10 +1510,11 @@ function renderRange(){
         +'<td class="num muted-c">'+(r.cv!=null?sgn(r.cv,0):'—')+'</td>'
         +'<td class="num muted-c">'+(r.vol!=null?sgn(r.vol,0):'—')+'</td>'
         +'<td class="num muted-c" title="'+esc(r.n+' daily observations from '+r.first)+'">'+r.n+'</td>'
-        +'<td class="num">'+(()=>{const v=yb[r.t],last=v[2],first=v[0];
-            const col=(last!=null&&first!=null)?(last<first?'#2E7D52':'#C0392B'):'';
-            return v.map((x,i)=>'<span'+(i===2&&col?' style="color:'+col+';font-weight:600"':' class="muted-c"')+'>'
-              +(x!=null?(x*100).toFixed(0)+'%':'—')+'</span>').join('<span class="muted-c"> · </span>');})()+'</td>'
+        +'<td class="num" title="'+esc(yb[r.t].map((x,i)=>yLab[i]+': '+(x?(x.b*100).toFixed(0)+'% band, n='+x.n:'no data')).join('  |  '))+'">'
+          +(()=>{const v=yb[r.t],last=v[di[1]],first=v[di[0]];
+            const col=(di[1]>di[0]&&last&&first)?(last.b<first.b?'#2E7D52':'#C0392B'):'';
+            return v.map((x,i)=>'<span'+(i===di[1]&&col?' style="color:'+col+';font-weight:600"':' class="muted-c"')+'>'
+              +(x?(x.b*100).toFixed(0)+'%':'—')+'</span>').join('<span class="muted-c"> · </span>');})()+'</td>'
         +'<td style="text-align:center">'+vrBar(r,dom)+'</td></tr>';
     });
   });
@@ -1481,9 +1525,25 @@ function renderRange(){
     if(ST.vrSort.k===kk)ST.vrSort.dir*=-1;else ST.vrSort={k:kk,dir:kk==='t'?1:1};renderRange();});
   document.querySelectorAll('#vr-tbl td[data-tk]').forEach(td=>td.onclick=()=>loadPairFromName(td.dataset.tk));
 }
-(function(){['vr-range','vr-year'].forEach(id=>{const el=document.getElementById(id);
-  if(el)el.querySelectorAll('button').forEach(b=>b.onclick=()=>{
-    const p=b.dataset.p;ST.vrM=/^Y/.test(p)?p:+p;renderRange();});});})();
+// Quarter buttons are generated from the panel's own last date rather than hard-coded, so they
+// stay correct as quarters and years roll over: every quarter of the current year up to and
+// including the running one, then the YTD (the same period as the year group's 2026 button —
+// both light up together because they are literally the same slice).
+(function(){
+  const el=document.getElementById('vr-q');
+  if(el){const d=D[N-1],y=+d.slice(0,4),q=qOf(d);let h='';
+    for(let i=1;i<=q;i++){const pr='Q'+y+'-'+i;h+='<button data-p="'+pr+'">'+vrLabel(pr)+'</button>';}
+    h+='<button data-p="Y'+y+'">'+vrLabel('Y'+y)+'</button>';
+    el.innerHTML=h;}
+  ['vr-range','vr-year','vr-q'].forEach(id=>{const g=document.getElementById(id);
+    if(g)g.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+      const pr=b.dataset.p;ST.vrM=/^[YQ]/.test(pr)?pr:+pr;renderRange();});});
+  const c=document.getElementById('vr-cmp');
+  if(c)c.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    ST.vrCmp=b.dataset.c;
+    c.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',String(x===b)));
+    renderRange();});
+})();
 function renderConsistency(){
   ST.conOpen=null;
   const minq=ST.conMinQ,sec=ST.conSec;
