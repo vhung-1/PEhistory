@@ -562,7 +562,7 @@ footer b{color:var(--muted);}
       <b>Rolling window vs calendar period.</b> The <b>1Y/3Y/5Y/Max</b> buttons look back from today; the <b>2024 / 2025 / 2026 YTD</b> and <b>1Q26 / 2Q26 / 3Q26 QTD</b> buttons are exact calendar slices, which is what you want for &ldquo;was the band wider in 2024, or in 1Q, than it is now&rdquo;. Whichever you pick drives the headline cards, the <b>Band</b> column and the bars. (The quarter row's <b>2026 YTD</b> button is the same slice as the year row's, so both highlight together.)
       The <b>Band by year / by quarter</b> columns are always computed regardless of that choice, so the comparison stays on screen without flipping the toggle — use <b>Comparison columns</b> to switch between the three calendar years and this year's quarters. The endpoint figure is coloured <span style="color:#2E7D52;font-weight:600">green</span> when the band has <b>narrowed</b> and <span style="color:#C0392B;font-weight:600">red</span> when it has <b>widened</b>, and the sub-sector table carries the same comparison plus the <b>Δ band</b> in percentage points. In quarter mode that Δ is <b>the last complete quarter versus 1Q</b> — deliberately not the running QTD quarter, which holds only a part-quarter of observations and would book a mechanical narrowing as a real one, and not the YTD column, which contains the others and would make the comparison circular. QTD is still shown as a column to eyeball; it is just not what gets differenced.
       <b>Shorter periods bias the band narrower.</b> This matters far more for quarters than for years. A full quarter is roughly 62 trading days and a part-quarter fewer still, against ~250 for a year: with fewer observations there is simply less time for a multiple to travel, so a quarter will print a tighter 10th&ndash;90th spread than a year even when nothing about the name has changed. Compare quarter against quarter, and year against year — never a quarter against a year — and read a small narrowing as noise rather than a signal. The per-name comparison cell tooltips carry the observation count behind every figure so you can see what each is built on. A period with fewer than 20 observations is dropped rather than shown, which is why a quarter that has only just begun returns nothing.
-      <b>Caveat:</b> names listed for less than the window (recent IPOs) fall back to their full available history, shown by a shorter <span class="num">n</span> — their bands cover less time and are not strictly comparable, which matters most on the <b>Max</b> setting; a name that listed mid-2025 shows &mdash; for 2024 and only a partial 2025. Vol is computed on the weekday series, which forward-fills market holidays (~5% of days show no change), so it is very slightly understated across the board.
+      <b>Caveat:</b> names listed for less than the window (recent IPOs) fall back to their full available history, shown by a shorter <span class="num">n</span> — their bands cover less time and are not strictly comparable, which matters most on the <b>Max</b> setting; a name that listed mid-2025 shows &mdash; for 2024 and only a partial 2025. <b>Market holidays are excluded from Vol.</b> They cannot be filtered by date — a holiday arrives from the vendor as an ordinary weekday row carrying forward-filled values, so the weekday filter removes weekends and nothing else. They are instead detected from the data: on a day an exchange was shut, every one of its names repeats the prior close <i>and</i> the P/E panel stalls with it. Both vendors must agree, because either alone misfires — the S&amp;P price feed forward-fills European names on <i>US</i> holidays, so a price-only test would have thrown away 29 real European trading days. That works out at ~3.3% of name-days; leaving them in understates Vol by ~1.8% relative, since a shut exchange contributes a guaranteed zero to the daily-change series. A name whose NTM EPS estimate was revised on a holiday genuinely repriced, so that observation is kept. <b>Level statistics — band, median, percentiles — deliberately stay on the full series</b>, because dropping stale rows moves them by only ~0.1pp, which is not worth re-baselining every figure on the dashboard for. Each name's <span class="num">n</span> tooltip reports how many holiday rows its window contained. One residual limit: exchanges represented by only two names (Paris, Amsterdam, Milan, Zurich) can occasionally register a genuine day on which both names happened to close flat — one such day in six years.
     </div>
   </section>
 
@@ -645,6 +645,41 @@ document.getElementById('asof').textContent=fmtFull(DATA.asof);
 document.getElementById('asof2').textContent=fmtFull(DATA.asof);
 document.getElementById('ncount').textContent=ALL_TICKERS.length;
 document.getElementById('excl').textContent=DATA.excluded.join(', ')||'none';
+
+// ---------- market-holiday detection ----------
+// Holidays reach the panel as ordinary weekday rows carrying forward-filled values (see the
+// refresh notes), so no date arithmetic can find them — the weekday filter removes weekends and
+// nothing else. They are visible in the data itself: on a day its exchange was shut, every name
+// on that exchange repeats the prior close AND the P/E panel stalls with it.
+// BOTH vendors have to agree, because either signal alone produces false positives. The S&P
+// price panel forward-fills European names on US holidays — on 2026-07-03 it showed 17 of 20
+// European names flat while Europe actually traded and 19 of 20 Bloomberg multiples moved — so a
+// price-only rule would discard real observations. Deriving the calendar from the data rather
+// than hard-coding one keeps it correct for every exchange and every year with no maintenance.
+const STALE=(function(){
+  const grp={},out={};
+  Object.keys(DPX).forEach(t=>{const s=t.slice(-2);(grp[s]=grp[s]||[]).push(t);});
+  Object.keys(grp).forEach(s=>{
+    const ts=grp[s];
+    if(ts.length<2)return;                 // one name cannot separate a closure from a flat day
+    for(let i=1;i<N;i++){
+      let pn=0,ps=0,en=0,es=0;
+      for(let k=0;k<ts.length;k++){
+        const a=DPX[ts[k]],b=PE[ts[k]];
+        if(a&&a[i]!=null&&a[i-1]!=null){pn++;if(a[i]===a[i-1])ps++;}
+        if(b&&b[i]!=null&&b[i-1]!=null){en++;if(b[i]===b[i-1])es++;}
+      }
+      // Every price flat, and the multiples broadly stalled too. Real closures sit near 100% on
+      // the P/E test and pipeline artifacts near 0%, so the 60% cut is nowhere near either edge.
+      if(pn<2||ps!==pn||en<2||es/en<0.60)continue;
+      // The exchange was shut. Mask only names whose own multiple did not move: one whose NTM EPS
+      // estimate was revised that day genuinely repriced, so that observation carries information.
+      for(let k=0;k<ts.length;k++){const t=ts[k],b=PE[t];
+        if(b&&b[i]!=null&&b[i-1]!=null&&b[i]===b[i-1])(out[t]=out[t]||new Set()).add(i);}
+    }
+  });
+  return out;
+})();
 
 // ---------- helpers ----------
 function lastVal(t){const a=PE[t];for(let i=a.length-1;i>=0;i--)if(a[i]!=null)return a[i];return null;}
@@ -1368,14 +1403,23 @@ function volStats(t,period){
   if(!(med>0))return null;
   const mean=v.reduce((s,x)=>s+x,0)/n;
   const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));
-  const rets=[];for(let k=1;k<n;k++)if(v[k]>0&&v[k-1]>0)rets.push(Math.log(v[k]/v[k-1]));
+  // Vol excludes market holidays. A shut exchange contributes a guaranteed zero to the daily-change
+  // series, which drags the standard deviation down without saying anything about the multiple;
+  // holidays are ~3.3% of name-days here, understating Vol by ~1.8% relative if left in. Level
+  // statistics (band, percentile, median) stay on the full series — dropping stale rows moves them
+  // by ~0.1pp, far too little to justify re-baselining every figure on the dashboard.
+  const st=STALE[t],rets=[];let nhol=0;
+  for(let k=1;k<n;k++){
+    if(st&&st.has(w.idx[k])){nhol++;continue;}
+    if(v[k]>0&&v[k-1]>0)rets.push(Math.log(v[k]/v[k-1]));
+  }
   let vol=null;
   if(rets.length>10){const rm=rets.reduce((s,x)=>s+x,0)/rets.length;
     vol=Math.sqrt(rets.reduce((s,x)=>s+(x-rm)**2,0)/(rets.length-1))*Math.sqrt(252);}
   // Same near-breakeven distortion test used on the Re-rate tab: when the top of the band is a
   // large multiple of the median, EPS approached zero and the P/E stopped measuring valuation.
   return {t,sec:SECOF[t]||'',cur:v[n-1],med,p10,p90,mn,mx,mean,
-          cv:mean>0?sd/mean:null,band:(p90-p10)/med,full:(mx-mn)/med,vol,n,first:D[w.idx[0]],
+          cv:mean>0?sd/mean:null,band:(p90-p10)/med,full:(mx-mn)/med,vol,n,nhol,first:D[w.idx[0]],
           distorted:p90/med>2.5};
 }
 // Box-and-whisker around the name's own median: box = p10..p90, whiskers = min..max,
@@ -1509,7 +1553,8 @@ function renderRange(){
         +'<td class="num"><b>'+sgn(r.band,0)+'</b></td>'
         +'<td class="num muted-c">'+(r.cv!=null?sgn(r.cv,0):'—')+'</td>'
         +'<td class="num muted-c">'+(r.vol!=null?sgn(r.vol,0):'—')+'</td>'
-        +'<td class="num muted-c" title="'+esc(r.n+' daily observations from '+r.first)+'">'+r.n+'</td>'
+        +'<td class="num muted-c" title="'+esc(r.n+' daily observations from '+r.first
+            +(r.nhol?' · '+r.nhol+' market-holiday rows excluded from Vol (kept in the level stats)':' · no market holidays in this window'))+'">'+r.n+'</td>'
         +'<td class="num" title="'+esc(yb[r.t].map((x,i)=>yLab[i]+': '+(x?(x.b*100).toFixed(0)+'% band, n='+x.n:'no data')).join('  |  '))+'">'
           +(()=>{const v=yb[r.t],last=v[di[1]],first=v[di[0]];
             const col=(di[1]>di[0]&&last&&first)?(last.b<first.b?'#2E7D52':'#C0392B'):'';
