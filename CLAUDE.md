@@ -2,13 +2,13 @@
 
 > **How to use this file.** Drop it in the repo root as `CLAUDE.md` (Claude Code reads it automatically) and keep the source files described in §2 alongside it. This is a complete operating manual: it assumes **no prior conversation context**. Read §1 (what this is), §3 (build), §4 (the gate), and §7 (refresh) before changing anything.
 
-> ⚠️ **Licensing first (see §11).** The dashboard **embeds licensed Bloomberg NTM forward-P/E and S&P-Global-derived adjusted prices** directly in the HTML. Anyone who can open the file can read the data. **Do not publish to a public site.** Private repo + access control only.
+> ⚠️ **Licensing first (see §11).** The dashboard **embeds licensed Bloomberg 1-year-forward (FY+1) P/E and S&P-Global-derived adjusted prices** directly in the HTML. Anyone who can open the file can read the data. **Do not publish to a public site.** Private repo + access control only.
 
 ---
 
 ## 1. What this is
 
-A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **NTM forward-P/E** valuation across **91 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
+A **single, self-contained interactive HTML dashboard** for a long/short **diversified-financials** equity investor. It does relative **1-year-forward (FY+1) P/E** valuation across **91 names in 7 sub-sectors**, plus validated **mean-reversion pair backtests**, **per-pair quarterly consistency** analysis, single-name P/E history, a sub-sector small-multiples grid, a **click-to-measure share-price-return tool** on the pair chart, and a **Software reference tab for JKHY**.
 
 **Technical shape**
 - **No runtime dependencies, no framework, no build step needed to *view*.** Plain HTML + one inline `<script>` of vanilla JS + inline SVG + one `<canvas>`. Opens by double-click. Current size ≈ **2.1 MB**.
@@ -98,7 +98,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 **`data.json` → `const DATA`** — the valuation panel.
 - `asof`: ISO date in the header.
 - `dates`: array of **weekday-only** ISO dates (currently `2020-06-22` → `2026-06-18`, 1,564 rows). **No weekend rows** (see §9).
-- `pe`: `{ "<TICKER>": [number|null, …] }` — daily **NTM forward P/E**, aligned to `dates`. Tickers are Bloomberg-style: `"CME US"`, `"LSEG LN"`, `"DB1 GY"`, `"EQT SS"`, …
+- `pe`: `{ "<TICKER>": [number|null, …] }` — daily **1-year-forward (FY+1) P/E**, aligned to `dates`. Tickers are Bloomberg-style: `"CME US"`, `"LSEG LN"`, `"DB1 GY"`, `"EQT SS"`, …
 - `sectors`: `{ "<Sub-sector>": ["<TICKER>", …] }` (the 7 sub-sectors, §8).
 - `sector_of`: reverse map. `excluded`: coverage tickers with no data in the workbook (currently none).
 
@@ -113,7 +113,7 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 
 **`sw_data.json` → `const SW`** — the **Software reference panel** (for the JKHY tab only).
 - `{ asof, names:["MSFT US",…], pe:{ "<TICKER>": [number|null, …] } }`, `pe` aligned to `DATA.dates`.
-- Daily NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 91-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
+- Daily 1-year-forward (FY+1) P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 91-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
 
 **Tab → source:** Pairs/Name P/E/Flags/Summary/Screen/Matrix/Grid/Coverage derive from `DATA.pe`; the Pairs click-to-measure tool reads `DPX`; Consistency reads `QD`; Backtest reads `BT`; the **Software tab reads `SW` (+ `DATA.pe['JKHY US']`)**.
 
@@ -141,7 +141,7 @@ A full refresh updates the **P/E panel** (Bloomberg coverage workbook), the **da
 1. The investor uploads a refreshed `Coverage_PE_multiples.xlsx` (sheet `HC`; ticker row at index 2; data from row index 5). It is **calendar-daily**, and **today's row, weekends, and US market holidays are forward-filled artifacts** — *not* clean closes.
 2. In `mkdata.py` set `ASOF` to **the latest *settled* close** = the most recent completed US trading day that is **not today** (today's pull is intraday/forward-filled) and **not a market holiday**. The script caps at `ASOF` and applies a **weekday filter** (`dayofweek < 5`). Note holidays still appear as weekday rows in the workbook (forward-filled); the `ASOF` cap is what excludes them when they fall after the last real close. (Example seen in practice: a Friday Juneteenth + weekend + an intraday Monday pull ⇒ the latest settled close was the prior Thursday, so `ASOF` did **not** advance.)
 3. Run `python mkdata.py` → `data.json` (2-dp rounding). The universe is **SECTORS-driven**: any coverage ticker absent from the workbook (or all-null) is auto-`excluded`, and workbook columns outside the SECTORS lists are ignored — so vendor re-tickering can't silently change coverage.
-4. Sanity-check span/row-count, **0 weekend rows**, and that historical overlap vs the prior `data.json` is stable (mean |Δ| ≈ 0.003x). New sourced P/E **revisions** on historical dates are normal (the vendor restates NTM EPS — e.g. ENX FP, ICG LN, AMP US have all been restated across many dates) — take the new file as truth.
+4. Sanity-check span/row-count, **0 weekend rows**, and that historical overlap vs the prior `data.json` is stable (mean |Δ| ≈ 0.003x). New sourced P/E **revisions** on historical dates are normal (the vendor restates forward EPS — e.g. ENX FP, ICG LN, AMP US have all been restated across many dates) — take the new file as truth.
 
 ### 7b. Regenerate the dependent references
 ```bash
@@ -210,6 +210,40 @@ Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US`
 8. **The gate (§4) must pass 39/39 after every rebuild.**
 
 ---
+
+## 9b. The multiple is 1-year forward (FY+1), NOT NTM
+
+**The uploaded workbooks supply a 1-year-forward multiple — the next full fiscal year (2027E for
+December year-ends) — not a rolling next-twelve-months blend.** This was mislabelled as "NTM"
+throughout the dashboard and this file until 2026-08-20; the labels are now corrected.
+
+The analytical consequence is a **discrete annual roll**. The denominator does not creep forward
+day by day; it steps once a year, on each company's own annual-results date, by roughly one year
+of expected earnings growth. Verified against the price panel — the step shows up as a large
+one-day fall in the multiple that the share price does not explain:
+
+- **83–96% of the move lands on a single day** (CME: 2024-02-14, 2025-02-12, 2026-02-04).
+- **Magnitude varies hugely by name, because it *is* the growth rate**: APO −16%, SPGI/MCO −11 to
+  −12%, ICE −11%, CME −7%. Names with non-December fiscal years or mid-January reporting dates
+  (V, BLK, SCHW) step in a different month, so it is *not* a universe-wide event.
+- February is the modal month (median −8.3% unexplained drift across US names, against ±0.4% for
+  every other month), because most December-FY US financials report then.
+
+What it affects:
+- **Single-name level statistics** (Name P/E percentile/z, Range band/CV/vol, Re-rate high/low)
+  carry an annual sawtooth that inflates every dispersion measure.
+- **Quarter-scoped windows are contaminated**: 77 of 91 names roll inside 1Q and none in 2Q/3Q.
+  Splitting 1Q26 at each name's roll date cuts the median band from 38% to 18%, so ~half of a
+  measured 1Q band is the roll. Cross-sectional *rankings* survive; levels and 1Q→2Q changes do not.
+- **Calendar-year and rolling-year windows are self-consistent** — each contains exactly one roll
+  per name.
+- **Relative/pair work largely cancels** (both legs roll) but not fully: differing growth rates or
+  fiscal year-ends leave a residual step of ~3–4% (CME/ICE +3.4%, APO/KKR +3.9%).
+
+Both are documented in the Range and Name P/E footnotes. **Open decision:** whether to
+roll-adjust the panel (rebase each pre-roll segment onto the post-roll basis, the same
+scale-factor idea as the price splice in §7c) so level statistics become continuous. That would
+change every published percentile and band, so it is a deliberate choice, not a silent fix.
 
 ## 10. Known gotchas
 

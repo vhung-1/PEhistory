@@ -1,6 +1,6 @@
 # PE Data API — Claude Code Agent Skill
 
-Connect any Claude Code agent to the live diversified-financials NTM forward-P/E dataset served on GitHub Pages.
+Connect any Claude Code agent to the live diversified-financials 1-year-forward (FY+1) P/E dataset served on GitHub Pages.
 
 ---
 
@@ -28,7 +28,15 @@ All endpoints are `GET`, return JSON, and are served with `Access-Control-Allow-
 
 ## Endpoints
 
-### `data.json` — NTM forward P/E panel (primary)
+> **The multiple is 1-year forward, not NTM.** `pe` holds the next full fiscal year's P/E (2027E for
+> December year-ends), so the denominator **steps once a year** on each company's own results date by
+> roughly one year of earnings growth — it does not roll forward smoothly. Any level statistic you
+> compute across a name's roll date (percentile, z-score, min/max, dispersion) carries that step as
+> if it were valuation movement. Relative/pair work largely cancels it; single-name level work does
+> not. Calendar-year and rolling-year windows are self-consistent (one roll each); quarter windows
+> are not (77 of 91 names roll inside 1Q, none in 2Q/3Q).
+
+### `data.json` — 1-year-forward (FY+1) P/E panel (primary)
 
 ```
 GET https://vhung-1.github.io/PEhistory/data.json
@@ -40,7 +48,7 @@ GET https://vhung-1.github.io/PEhistory/data.json
   "asof": "2026-07-17",           // date of last settled close
   "dates": ["2020-07-20", ...],   // 1565 weekday-only ISO dates
   "pe": {
-    "CME US":  [29.5, 29.8, null, ...],  // NTM fwd P/E per date; null = no data
+    "CME US":  [29.5, 29.8, null, ...],  // 1Y fwd (FY+1) P/E per date; null = no data
     "SCHW US": [18.2, 18.1, 18.4, ...],
     ...                           // 91 tickers total
   },
@@ -154,7 +162,7 @@ GET https://vhung-1.github.io/PEhistory/btdata.json
 GET https://vhung-1.github.io/PEhistory/sw_data.json
 ```
 
-NTM forward P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). Reference only — NOT in the 91-name universe.
+1-year-forward (FY+1) P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). Reference only — NOT in the 91-name universe.
 
 ---
 
