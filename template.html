@@ -1090,6 +1090,22 @@ function swSeries(key){
 function swLabel(key){return key==='~avg'?'Software average':key==='~med'?'Software median':key==='JKHY US'?'JKHY':(SWLBL[key]||key.replace(' US',''));}
 function swOpts(){return [{v:'JKHY US',t:'JKHY (Jack Henry)'},{v:'~avg',t:'Software average'},{v:'~med',t:'Software median'}].concat(SW.names.map(t=>({v:t,t:SWLBL[t]+' ('+t.replace(' US','')+')'})));}
 function swPctile(arr,x){const a=arr.filter(v=>v!=null).slice().sort((p,q)=>p-q);if(!a.length||x==null)return null;let c=0;for(const v of a)if(v<=x)c++;return c/a.length*100;}
+// The software workbook is on its own upload cadence, so this panel can legitimately lag the
+// coverage panel by a day or more (a refresh that brings no new software file leaves a trailing
+// null). Read every series at its own most recent observation rather than at the last index,
+// and disclose the software panel's real as-of date instead of inheriting the coverage one.
+function swLastIdx(arr){if(!arr)return -1;for(let i=N-1;i>=0;i--)if(arr[i]!=null)return i;return -1;}
+function swLastVal(arr){const i=swLastIdx(arr);return i<0?null:arr[i];}
+const SWASOF=(function(){let mx=-1;SW.names.forEach(t=>{const i=swLastIdx(SW.pe[t]);if(i>mx)mx=i;});return mx>=0?D[mx]:null;})();
+// A workbook can carry rows forward with frozen values, in which case the last OBSERVATION date
+// overstates freshness. SWMOVE is the last date any software multiple actually changed — the
+// honest measure of how current this panel is, and worth saying out loud when the two diverge.
+const SWMOVE=(function(){let mx=-1;
+  SW.names.forEach(t=>{const a=SW.pe[t];
+    for(let i=N-1;i>0;i--){if(a[i]==null)continue;let j=i-1;while(j>=0&&a[j]==null)j--;
+      if(j>=0&&a[i]!==a[j]){if(i>mx)mx=i;break;}}});
+  return mx>=0?D[mx]:null;})();
+const swOrd=(v)=>{const k=Math.round(v),m=k%100,sfx=['th','st','nd','rd'];return k+'<small>'+(sfx[(m-20)%10]||sfx[m]||sfx[0])+'</small>';};
 function renderSW(){
   const m=ST.swM||0,last=D[N-1];let start=0;
   if(m){const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);const cs=cut.toISOString().slice(0,10);start=D.findIndex(d=>d>=cs);if(start<0)start=0;}
@@ -1106,8 +1122,9 @@ function renderSW(){
   let soft='';SW.names.forEach(t=>{if(t!==A&&t!==B)soft+=`<path d="${path(idxs.map(i=>SW.pe[t][i]))}" fill="none" stroke="#C9D2D9" stroke-width="1" opacity="0.6"/>`;});
   const pB=`<path d="${path(idxs.map(i=>sB[i]))}" fill="none" stroke="#E2733A" stroke-width="2.4"/>`;
   const pA=`<path d="${path(idxs.map(i=>sA[i]))}" fill="none" stroke="#15697A" stroke-width="2.4"/>`;
-  const la=sA[N-1],lb=sB[N-1];
-  const dots=(la!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(la).toFixed(1)}" r="3.6" fill="#15697A"/>`:'')+(lb!=null?`<circle cx="${X(n-1).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="3.6" fill="#E2733A"/>`:'');
+  const iA=swLastIdx(sA),iB=swLastIdx(sB),la=iA<0?null:sA[iA],lb=iB<0?null:sB[iB];
+  const kA=idxs.indexOf(iA),kB=idxs.indexOf(iB);
+  const dots=(la!=null&&kA>=0?`<circle cx="${X(kA).toFixed(1)}" cy="${Y(la).toFixed(1)}" r="3.6" fill="#15697A"/>`:'')+(lb!=null&&kB>=0?`<circle cx="${X(kB).toFixed(1)}" cy="${Y(lb).toFixed(1)}" r="3.6" fill="#E2733A"/>`:'');
   document.getElementById('sw-chart').innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${grid}<line x1="${PADL}" y1="${PADT}" x2="${PADL}" y2="${PADT+ph}" stroke="var(--line2)" stroke-width="1"/>${xax}${soft}${pB}${pA}${dots}</svg>`;
   document.getElementById('sw-legend').innerHTML=
     `<span><i style="display:inline-block;width:16px;height:3px;background:#15697A;border-radius:2px;vertical-align:middle;margin-right:5px;"></i>${swLabel(A)}</span>`+
@@ -1118,13 +1135,14 @@ function renderSW(){
   const cards=[{k:swLabel(A)+' P/E',v:la==null?'\u2014':la.toFixed(1)+'x'},
     {k:swLabel(B)+' P/E',v:lb==null?'\u2014':lb.toFixed(1)+'x'},
     {k:swLabel(A)+' vs '+swLabel(B),v:gap==null?'\u2014':(gap>=0?'+':'\u2212')+Math.abs(gap).toFixed(1)+'%',cls:gap==null?'':(gap>=0?'pos':'neg')},
-    {k:swLabel(A)+' 5Y %ile',v:ap==null?'\u2014':ap.toFixed(0)+'<small>th</small>'}];
+    {k:swLabel(A)+' 5Y %ile',v:ap==null?'\u2014':swOrd(ap)}];
   document.getElementById('sw-stats').innerHTML=cards.map(c=>`<div class="stat"><div class="k">${c.k}</div><div class="v num ${c.cls||''}">${c.v}</div></div>`).join('');
   const isSel=key=>key===A||key===B;
-  const rows=[{key:'JKHY US',nm:'JKHY <span style="color:var(--muted)">Jack Henry</span>',cur:PE['JKHY US'][N-1]},
-              {key:'~avg',nm:'Software average',cur:swAggAt(N-1,swMean),agg:1},
-              {key:'~med',nm:'Software median',cur:swAggAt(N-1,median),agg:1}];
-  SW.names.map(t=>({key:t,nm:(SWLBL[t]||t)+' <span style="color:var(--muted)">'+t.replace(' US','')+'</span>',cur:SW.pe[t][N-1]}))
+  const rows=[{key:'JKHY US',nm:'JKHY <span style="color:var(--muted)">Jack Henry</span>'},
+              {key:'~avg',nm:'Software average',agg:1},
+              {key:'~med',nm:'Software median',agg:1}]
+    .map(r=>Object.assign(r,{cur:swLastVal(swSeries(r.key))})).filter(r=>r.cur!=null);
+  SW.names.map(t=>({key:t,nm:(SWLBL[t]||t)+' <span style="color:var(--muted)">'+t.replace(' US','')+'</span>',cur:swLastVal(SW.pe[t])}))
           .filter(r=>r.cur!=null).sort((a,b)=>b.cur-a.cur).forEach(r=>rows.push(r));
   const tbl=document.getElementById('sw-table');
   tbl.querySelector('thead').innerHTML='<tr><th>Name</th><th>Fwd P/E</th><th>5Y &percnt;ile</th></tr>';
@@ -1133,7 +1151,9 @@ function renderSW(){
     const col=r.key===A?'#15697A':r.key===B?'#E2733A':'';
     const st=isSel(r.key)?` style="font-weight:700;color:${col}"`:(r.agg?' style="font-weight:600;color:#9aa3ab"':'');
     return `<tr${st}><td>${r.nm}</td><td class="num">${r.cur.toFixed(1)}x</td><td class="num">${pl}</td></tr>`;}).join('');
-  document.getElementById('sw-note').innerHTML='Software aggregates span '+SW.names.length+' names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). NTM forward P/E from Bloomberg, weekday series, as of <b>'+SW.asof+'</b>. 5Y %ile = where today sits within that series\u2019 own embedded history. <b>Reference only</b> \u2014 not part of Pairs, Screen, Matrix, Consistency or the Backtest. JKHY is drawn from the main coverage panel.';
+  const swLag=(SWASOF&&SWASOF!==D[N-1])?' The software workbook is uploaded on its own cadence and currently runs behind the coverage panel, so these software figures are as of <b>'+SWASOF+'</b> while JKHY is as of <b>'+D[N-1]+'</b>; each series is read at its own latest close rather than forced onto a common date.':'';
+  const swStale=(SWMOVE&&SWASOF&&SWMOVE!==SWASOF)?' <b style="color:#C0392B">Stale:</b> no software multiple has actually moved since <b>'+SWMOVE+'</b> \u2014 the rows after that carry the same values forward, so every comparison against JKHY on this tab is against a '+SWMOVE.slice(0,7)+' snapshot. Upload a fresh <span class="mono">bbg_software_mults.xlsx</span> and re-run <span class="mono">mksw.py</span> to refresh it.':'';
+  document.getElementById('sw-note').innerHTML='Software aggregates span '+SW.names.length+' names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). NTM forward P/E from Bloomberg, weekday series, as of <b>'+(SWASOF||SW.asof)+'</b>.'+swLag+swStale+' 5Y %ile = where today sits within that series\u2019 own embedded history. <b>Reference only</b> \u2014 not part of Pairs, Screen, Matrix, Consistency or the Backtest. JKHY is drawn from the main coverage panel.';
 }
 (function initSW(){const o=swOpts();fillSelV(document.getElementById('sw-a'),o,ST.swA);fillSelV(document.getElementById('sw-b'),o,ST.swB);
   document.getElementById('sw-a').onchange=e=>{ST.swA=e.target.value;renderSW();};
