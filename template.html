@@ -634,6 +634,10 @@ const BT = __BTDATA__;
 const QD = __QDATA__;
 const DPXMETA = __DPX__;
 const DPX = DPXMETA.px;
+// Real last priced date. The price panel is pulled from a separate source to the P/E panel and
+// can end earlier -- an unsourced day is left null, never forward-filled -- so the measure tool
+// discloses the gap rather than letting the reader assume both panels end together.
+const PXASOF = DPXMETA.asof;
 const SW = __SWDATA__;
 const D = DATA.dates, PE = DATA.pe, SEC = DATA.sectors, SECOF = DATA.sector_of;
 const N = D.length;
@@ -816,6 +820,9 @@ cv.addEventListener('mouseleave',()=>{tip.style.opacity=0;if(CHART.n)drawChart({
 
 // ----- click-to-measure: numerator (Name A) share-price return between two dates -----
 function measAllowed(){return !isAgg(ST.A) && !!DPX[ST.A];}
+function pxLagNote(){return (PXASOF&&PXASOF!==D[N-1])
+  ? ' <b style="color:#C0392B">Prices run to '+PXASOF+'</b>, one day behind the P/E panel \u2014 the latest date has no sourced close and was left blank rather than carried forward, so measuring to it returns nothing.'
+  : '';}
 function pxAt(t,di){const a=DPX[t];return a?a[di]:null;}
 function drawMeasure(){
   if(!CHART.n||!measAllowed())return;
@@ -843,7 +850,7 @@ function renderMeasure(){
     el.innerHTML='<span class="mhint">Pick a single name as <b>Name A</b> (numerator) to measure its share-price return between two dates on the chart.</span>';return;}
   const lbl=legLabel(ST.A);
   if(ST.measA==null){el.className='measure';
-    el.innerHTML='<span class="mhint">Click two dates on the chart to measure <b>'+lbl+'</b>’s share-price return between them.</span>';return;}
+    el.innerHTML='<span class="mhint">Click two dates on the chart to measure <b>'+lbl+'</b>’s share-price return between them.'+pxLagNote()+'</span>';return;}
   if(ST.measB==null){const pa=pxAt(ST.A,ST.measA);el.className='measure armed';
     el.innerHTML='<span class="mlead">'+lbl+'</span><span class="mdet">start '+fmtFull(D[ST.measA])+' · '+fmtP(pa)+'</span><span class="mhint">— click the end date</span><span class="mclear" onclick="clearMeas()">clear</span>';return;}
   let s=ST.measA,e=ST.measB;if(s>e){const tmp=s;s=e;e=tmp;}
