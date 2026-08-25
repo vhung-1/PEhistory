@@ -21,12 +21,25 @@ Usage:
   python pe_email.py --send          # build + send via Brevo to RECIPIENT
   python pe_email.py --send --subject-tag SAMPLE
 """
-import json, os, sys, datetime, urllib.request, urllib.error
+import json, os, sys, datetime, ssl, urllib.request, urllib.error
+
+# Outbound HTTPS in this environment goes through a proxy with its own CA bundle. Build an SSL
+# context from it so the live-data fetch and the Brevo call verify cleanly in an unattended
+# (scheduled) run without any env setup; fall back to the default context elsewhere. urllib picks
+# up HTTPS_PROXY on its own.
+def _ctx():
+    ca = os.environ.get('SSL_CERT_FILE') or '/root/.ccr/ca-bundle.crt'
+    try:
+        if os.path.exists(ca): return ssl.create_default_context(cafile=ca)
+    except Exception:
+        pass
+    return None
+CTX = _ctx()
 
 SRC       = os.environ.get('PE_SRC', 'data.json')
 RECIPIENT = os.environ.get('PE_RECIPIENT', 'vhung@attelascap.com')
 SENDER    = os.environ.get('PE_SENDER', 'vhung@attelascap.com')
-SENDER_NM = os.environ.get('PE_SENDER_NAME', 'Coverage P/E Monitor')
+SENDER_NM = os.environ.get('PE_SENDER_NAME', 'P/E monitor agent')
 DASH_URL  = 'https://vhung-1.github.io/PEhistory/Relative_PE_Dashboard.html'
 WIN       = 252   # trailing weekday rows ~ 1 calendar year
 
@@ -54,17 +67,17 @@ NAMES = {'CME US':'CME Group','ICE US':'Intercontinental Exch','NDAQ US':'Nasdaq
   'FIGR US':'Figure','ETOR US':'eToro','WLTH US':'Wealthfront','SQN SW':'Swissquote','AZA SS':'Avanza',
   'SAVE SS':'Nordnet','IGG LN':'IG Group','AJB LN':'AJ Bell'}
 
-# zone colour ramp by percentile (green = cheap vs own history, red = expensive).
-# Returns (strong, pale, tag). Pale fills are solid hex, not alpha — 8-digit hex is
-# unreliable across Gmail / Outlook.
+# Diverging colour ramp by percentile: bold green = cheap vs own history through to
+# a proper red = expensive. The bar is filled in these strong colours (not pale
+# tints) so the read is prominent. Returns (fill, tag).
 def zone(pc):
-    if pc is None: return ('#9AA7B3','#EAEEF1','')
-    if pc <= 10:  return ('#1B7A4B','#DCEDE3','▼ cheap')
-    if pc <= 30:  return ('#3A9E68','#E1F0E8','')
-    if pc <= 50:  return ('#8CA36B','#EDF1E6','')
-    if pc <= 70:  return ('#C99A3F','#F6EEDD','')
-    if pc <= 90:  return ('#C0632E','#F6E4D8','')
-    return ('#B02418','#F5DEDB','▲ rich')
+    if pc is None: return ('#9AA7B3','')
+    if pc <= 10:  return ('#157A3C','▼ cheap')   # deep green
+    if pc <= 30:  return ('#2E9E52','')          # green
+    if pc <= 50:  return ('#8FB03E','')          # yellow-green
+    if pc <= 70:  return ('#E39B23','')          # amber
+    if pc <= 90:  return ('#E0662A','')          # orange
+    return ('#CC2A22','▲ rich')                  # proper red
 
 def ordinal(k):
     m = k % 100
@@ -100,15 +113,16 @@ def bar(r):
     TRACK = 132
     if r['pc'] is None:
         return '<span style="color:#9AA7B3;font-size:12px;">insufficient history</span>'
-    col, tint, tag = zone(r['pc'])
-    fill = max(2, round(TRACK * r['pc']/100))
+    col, tag = zone(r['pc'])
+    fill = max(3, round(TRACK * r['pc']/100))
+    # Bold strong-colour fill to the percentile point, capped by a dark position tick.
     track = ('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="%d" '
-             'style="width:%dpx;background:#EAEEF1;border-radius:3px;border-collapse:separate;">'
+             'style="width:%dpx;background:#E3E8EC;border-radius:4px;border-collapse:separate;">'
              '<tr>'
-             '<td height="13" width="%d" style="width:%dpx;background:%s;border-right:2px solid %s;'
-             'border-radius:3px 0 0 3px;font-size:0;line-height:0;">&nbsp;</td>'
-             '<td height="13" style="font-size:0;line-height:0;">&nbsp;</td>'
-             '</tr></table>') % (TRACK, TRACK, fill, fill, tint, col)
+             '<td height="15" width="%d" style="width:%dpx;background:%s;border-right:2px solid #16303B;'
+             'border-radius:4px 0 0 4px;font-size:0;line-height:0;">&nbsp;</td>'
+             '<td height="15" style="font-size:0;line-height:0;">&nbsp;</td>'
+             '</tr></table>') % (TRACK, TRACK, fill, fill, col)
     lo = ('%.1f' % r['lo']).rstrip('0').rstrip('.')
     hi = ('%.1f' % r['hi']).rstrip('0').rstrip('.')
     tagspan = (' <span style="color:%s;font-weight:600;font-size:11px;white-space:nowrap;">%s</span>' % (col, tag)) if tag else ''
@@ -205,7 +219,7 @@ def send_brevo(html, subject):
     req = urllib.request.Request('https://api.brevo.com/v3/smtp/email', data=body,
         headers={'api-key': key, 'content-type': 'application/json', 'accept': 'application/json'})
     try:
-        with urllib.request.urlopen(req, timeout=60) as resp:
+        with urllib.request.urlopen(req, timeout=60, context=CTX) as resp:
             print('Brevo %s: %s' % (resp.status, resp.read().decode()[:300]))
             return 200 <= resp.status < 300
     except urllib.error.HTTPError as e:
@@ -214,7 +228,7 @@ def send_brevo(html, subject):
         print('Brevo error: %r' % e); return False
 
 if __name__ == '__main__':
-    d = (json.loads(urllib.request.urlopen(SRC).read()) if SRC.startswith('http')
+    d = (json.loads(urllib.request.urlopen(SRC, timeout=60, context=CTX).read()) if SRC.startswith('http')
          else json.load(open(SRC)))
     html = build_html(d)
     open('/tmp/pe_email.html', 'w').write(html)
