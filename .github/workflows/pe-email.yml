@@ -1,7 +1,7 @@
 name: Weekly P/E monitor email
 
 # Sends the coverage P/E vs 1-year-history email (pe_email.py) to the recipient via
-# Brevo, every Sunday at 12:00 UK time. Durable and independent of any Claude session.
+# Brevo, every Saturday at 12:00 UK time. Durable and independent of any Claude session.
 #
 # GitHub Actions cron is always UTC and does not observe DST, so 12:00 UK moves between
 # 11:00 UTC (BST, summer) and 12:00 UTC (GMT, winter). Rather than switch the schedule
@@ -13,8 +13,8 @@ name: Weekly P/E monitor email
 
 on:
   schedule:
-    - cron: '0 11 * * 0'   # 12:00 UK while BST is in effect
-    - cron: '0 12 * * 0'   # 12:00 UK while GMT is in effect
+    - cron: '0 11 * * 6'   # 12:00 UK while BST is in effect (Saturday)
+    - cron: '0 12 * * 6'   # 12:00 UK while GMT is in effect (Saturday)
   workflow_dispatch:        # manual trigger for testing / an ad-hoc send
 
 permissions:
