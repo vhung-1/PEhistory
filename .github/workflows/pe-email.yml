@@ -1,0 +1,59 @@
+name: Weekly P/E monitor email
+
+# Sends the coverage P/E vs 1-year-history email (pe_email.py) to the recipient via
+# Brevo, every Sunday at 12:00 UK time. Durable and independent of any Claude session.
+#
+# GitHub Actions cron is always UTC and does not observe DST, so 12:00 UK moves between
+# 11:00 UTC (BST, summer) and 12:00 UTC (GMT, winter). Rather than switch the schedule
+# twice a year, we fire on BOTH and gate the send to the run where Europe/London is
+# actually 12:00 — so it lands at noon UK year-round with no manual intervention.
+#
+# Requires a repository secret BREVO_API_KEY (Settings -> Secrets and variables ->
+# Actions). Without it the send step fails loudly and the run is marked failed.
+
+on:
+  schedule:
+    - cron: '0 11 * * 0'   # 12:00 UK while BST is in effect
+    - cron: '0 12 * * 0'   # 12:00 UK while GMT is in effect
+  workflow_dispatch:        # manual trigger for testing / an ad-hoc send
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pe-email
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3'
+
+      # A scheduled run only proceeds when it is really 12:00 in London; a manual
+      # (workflow_dispatch) run always proceeds.
+      - name: Gate to 12:00 Europe/London
+        id: gate
+        run: |
+          H=$(TZ='Europe/London' date +%H)
+          echo "London hour is $H"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "12" ]; then
+            echo "proceed=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=no"  >> "$GITHUB_OUTPUT"
+            echo "Not 12:00 UK on this run — skipping (the other cron will handle it)."
+          fi
+
+      - name: Send weekly P/E email
+        if: steps.gate.outputs.proceed == 'yes'
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          if [ -z "$BREVO_API_KEY" ]; then
+            echo "::error::BREVO_API_KEY secret is not set — add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          python pe_email.py --send
