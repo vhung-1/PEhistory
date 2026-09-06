@@ -175,7 +175,7 @@ Hard-coded, starts **2022-06**, which is why backtest *returns* start there even
 `python build.py` → §4 gate → confirm `asof`, span, 0 weekend rows, the latest day present, `DPX` and `SW` span the full date range. Only then ship.
 
 ### 7f. Software reference → `sw_data.json`
-Only when a fresh `bbg_software_mults.xlsx` is supplied (same HC layout; sheet may be `hC`). `python mksw.py` excludes JKHY, aligns the 8 software names to `data.json.dates`, and writes `sw_data.json`. **The software workbook is on its own pull cadence** — if it wasn't refreshed this round, just re-run `mksw.py` to realign to the new dates (its latest values carry forward; the tab is reference-only). It uses Bloomberg forward P/E, so it **cannot** be refreshed from the S&P connector — it needs a new workbook upload.
+Only when a fresh `bbg_software_mults.xlsx` is supplied (same HC layout; sheet may be `hC`). Set `SW_ASOF` in `mksw.py` to that workbook's latest **settled** close (same rule as `ASOF`, §7a — the pull-day row is a forward-fill and is dropped). `python mksw.py` excludes JKHY, aligns the 8 software names to `data.json.dates`, and writes `sw_data.json`. **The software workbook is on its own pull cadence** — if it wasn't refreshed this round, just re-run `mksw.py` to realign to the new dates (its latest values carry forward; the tab is reference-only). It uses Bloomberg forward P/E, so it **cannot** be refreshed from the S&P connector — it needs a new workbook upload.
 
 ---
 
@@ -253,6 +253,7 @@ change every published percentile and band, so it is a deliberate choice, not a 
 - **Token substring order** — `__DATA__` ⊂ `__QDATA__`/`__BTDATA__`; replace the long ones first (§3).
 - **`bt_verify` is self-consistent** — regenerate `bt_results.json` (`bt_export.py`) whenever backtest inputs change, or the gate "fails" only because the reference is stale.
 - **Big S&P pulls** land under `SP_PULLS_DIR` — parse with Python; don't read them into context.
+- **SQN SW vendor-glitch hold** — the coverage workbook carries a spurious V-trough in Swissquote's forward P/E over 2026-05-29..2026-07-15 (−46% overnight, flat 7 weeks, +69% snap-back, share price stable). `mkdata.py` holds that window at the values sourced from the pre-glitch workbook (`HOLD` dict, investor decision 2026-09-03); a refresh therefore shows **0 historical diffs** for SQN SW even though the raw workbook still differs. Remove the block only once the vendor corrects the series.
 - **The software workbook sheet** is `hC` (case differs from the coverage `HC`); `mksw.py` matches case-insensitively.
 
 ---

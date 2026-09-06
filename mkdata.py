@@ -5,7 +5,7 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-03'  # latest settled US close (Thu 3 Sep); 4 Sep (today, Fri) is intraday — market open mid-session at pull time — excluded per CLAUDE.md §7a.
+ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep); workbook pulled Sun 6 Sep — 5/6 Sep rows are weekend forward-fill (0 changes), excluded per CLAUDE.md §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -30,6 +30,25 @@ for t in SECNAMES:
     if not has[t]: continue
     col=data[t]
     PE[t]=[ (None if pd.isna(v) else round(float(v),2)) for v in col.values ]
+
+# --- Vendor-glitch hold (CLAUDE.md §10). The Bloomberg workbook carries a spurious V-trough in SQN SW's
+# forward P/E over 2026-05-29..2026-07-15: -46% overnight, flat for 7 weeks, +69% snap-back, with the share
+# price stable throughout. Per the investor's decision (2026-09-03) the window is held at the values sourced
+# from the pre-glitch workbook (below, 2 dp) — sourced values only, no interpolation. Delete this block if the
+# vendor corrects the series (verify: the raw workbook values for these dates return to the ~15-17x range).
+HOLD = {'SQN SW': {
+    '2026-05-29':15.94, '2026-06-01':15.71, '2026-06-02':15.66, '2026-06-03':15.33, '2026-06-04':15.51, '2026-06-05':15.33,
+    '2026-06-08':15.54, '2026-06-09':15.33, '2026-06-10':15.18, '2026-06-11':15.27, '2026-06-12':15.84, '2026-06-15':16.07,
+    '2026-06-16':16.07, '2026-06-17':15.91, '2026-06-18':15.87, '2026-06-19':15.58, '2026-06-22':15.64, '2026-06-23':15.64,
+    '2026-06-24':15.45, '2026-06-25':15.36, '2026-06-26':14.93, '2026-06-29':14.98, '2026-06-30':15.24, '2026-07-01':15.48,
+    '2026-07-02':15.95, '2026-07-03':16.13, '2026-07-06':16.77, '2026-07-07':16.78, '2026-07-08':16.52, '2026-07-09':16.71,
+    '2026-07-10':16.76, '2026-07-13':16.62, '2026-07-14':16.86, '2026-07-15':17.02,
+}}
+for _t,_m in HOLD.items():
+    if _t in PE:
+        for _i,_d in enumerate(DATES):
+            if _d in _m: PE[_t][_i] = _m[_d]
+
 
 payload = dict(asof=DATES[-1], dates=DATES, sectors=SECTORS_F, sector_of=sec_of, excluded=excluded, pe=PE)
 js = json.dumps(payload, separators=(',',':'))

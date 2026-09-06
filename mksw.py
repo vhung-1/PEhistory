@@ -6,6 +6,11 @@ import pandas as pd
 # Run AFTER mkdata.py — it aligns to data.json's dates. JKHY is intentionally
 # excluded here (the tab draws JKHY from the main coverage panel for consistency).
 SRC = os.environ.get('SW_WORKBOOK', 'bbg_software_mults.xlsx')
+# Latest SETTLED close in the software workbook (same rule as ASOF in mkdata.py, CLAUDE.md §7a): the
+# workbook is calendar-daily and its final row is the pull-day forward-fill, not a close. The 2026-08-20
+# upload was taken before the US open, so its 8/20 row repeats 8/19 for every software name. Update this
+# when a fresh software workbook is supplied.
+SW_ASOF = os.environ.get('SW_ASOF', '2026-08-19')
 
 xl = pd.ExcelFile(SRC)
 sheet = next((s for s in xl.sheet_names if s.lower() == 'hc'), xl.sheet_names[0])
@@ -18,6 +23,7 @@ df.columns = tickers
 df.index = dates
 df = df[df.index.notna()].sort_index()
 df.index = df.index.strftime('%Y-%m-%d')
+df = df[df.index <= SW_ASOF]                             # drop the pull-day forward-fill row(s)
 
 SWN = [t for t in tickers if t != 'JKHY US']           # JKHY comes from the main panel
 main = json.load(open('data.json'))
