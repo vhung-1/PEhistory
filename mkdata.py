@@ -5,7 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep); workbook pulled Sun 6 Sep — 5/6 Sep rows are weekend forward-fill (0 changes), excluded per CLAUDE.md §7a.
+ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep). Workbook pulled Tue 8 Sep, but nothing after 4 Sep
+                   # is a settled US close: 5/6 Sep are the weekend (0 changes), Mon 7 Sep is US Labor Day
+                   # (only the 20 European names moved, no US close), and 8 Sep is today's intraday row
+                   # (6 names). All excluded per CLAUDE.md §7a — a revisions-only refresh.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
