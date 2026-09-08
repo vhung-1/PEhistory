@@ -1,0 +1,78 @@
+name: Daily relative P/E email
+
+# Sends the relative-P/E monitor (pair_email.py) to the recipient via Brevo every day at
+# 08:00 UK time. Durable and independent of any Claude session.
+#
+# The charts are not built here. They are rendered from the gate-passed dashboard during the
+# Pages deploy (see pages.yml) and served from the site, so this job only has to assemble the
+# HTML and send it — no browser, no Chromium download, a few seconds per run.
+#
+# GitHub Actions cron is always UTC and does not observe DST, so 08:00 UK moves between
+# 07:00 UTC (BST, summer) and 08:00 UTC (GMT, winter). Rather than switch the schedule twice a
+# year, we fire on BOTH and gate the send to the run where Europe/London is actually 08:00 — so
+# it lands at 8am UK year-round with no manual intervention.
+#
+# Requires a repository secret BREVO_API_KEY (Settings -> Secrets and variables -> Actions).
+# Without it the send step fails loudly and the run is marked failed.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'    # 08:00 UK while BST is in effect
+    - cron: '0 8 * * *'    # 08:00 UK while GMT is in effect
+  workflow_dispatch:        # manual trigger for testing / an ad-hoc send
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pair-email
+  cancel-in-progress: false
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # A scheduled run only proceeds when it is really 08:00 in London; a manual
+      # (workflow_dispatch) run always proceeds.
+      - name: Gate to 08:00 Europe/London
+        id: gate
+        run: |
+          H=$(TZ='Europe/London' date +%H)
+          echo "London hour is $H"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "08" ]; then
+            echo "proceed=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "proceed=no"  >> "$GITHUB_OUTPUT"
+            echo "Not 08:00 UK on this run — skipping (the other cron will handle it)."
+          fi
+
+      # Advisory only: the mail is still complete without images (the summary table and the
+      # strip above each chart carry every figure), so a missing chart must not block the send.
+      - name: Check charts are published
+        if: steps.gate.outputs.proceed == 'yes'
+        run: |
+          ASOF=$(python -c "import json;print(json.load(open('data.json'))['asof'])")
+          URL="https://vhung-1.github.io/PEhistory/charts/fdsus-lsegln.png?v=$ASOF"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 "$URL" || echo 000)
+          if [ "$CODE" = "200" ]; then
+            echo "charts published (asof $ASOF)"
+          else
+            echo "::warning::chart probe returned $CODE for $URL — the email will send with"\
+                 "figures intact but images missing until the next Pages deploy."
+          fi
+
+      - name: Send daily relative P/E email
+        if: steps.gate.outputs.proceed == 'yes'
+        env:
+          BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
+        run: |
+          if [ -z "$BREVO_API_KEY" ]; then
+            echo "::error::BREVO_API_KEY secret is not set — add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          python pair_email.py --send

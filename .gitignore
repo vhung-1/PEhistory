@@ -1,4 +1,4 @@
-node_modules/
+node_modules
 __pycache__/
 *.pyc
 .DS_Store
@@ -12,3 +12,5 @@ perpair.json
 _site/
 # licensed source workbooks — never publish the raw vendor files
 *.xlsx
+# chart PNGs for the daily email — built by mkcharts.mjs during the Pages deploy
+charts/

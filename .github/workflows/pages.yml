@@ -50,6 +50,16 @@ jobs:
           node bt_verify.js | tee gate.out
           grep -q "ALL CHECKS PASSED (39 passed)" gate.out
 
+      # Chart PNGs for the daily relative-P/E email. Generated here, from the gate-passed
+      # dashboard, so the emailed images always match the site that is about to deploy — and
+      # so they never enter git history. Served at /charts/*.png; pair_email.py appends
+      # ?v=<asof>, which Pages honours as a cache key (raw.githubusercontent does not).
+      - name: Install chart renderer
+        run: |
+          set -euo pipefail
+          npm install --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
       - name: Stage site
         run: |
           set -euo pipefail
@@ -57,6 +67,8 @@ jobs:
           cp index.html Relative_PE_Dashboard.html _site/
           cp data.json daily_px.json sw_data.json q_pairs.json btdata.json bt_results.json _site/
           python mkapi.py _site   # discovery manifest -> _site/api.json
+          node mkcharts.mjs _site/charts Relative_PE_Dashboard.html
+          test "$(ls _site/charts/*.png | wc -l)" -eq 20   # 17 pairs + 3 single names
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

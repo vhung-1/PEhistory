@@ -1,0 +1,11 @@
+{
+  "name": "pehistory-charts",
+  "private": true,
+  "description": "Chart rendering for the daily relative-P/E email. mkcharts.mjs drives the built dashboard in headless Chromium and screenshots its own Pairs / Name P-E charts, so the emailed images cannot drift from the published site.",
+  "scripts": {
+    "charts": "node mkcharts.mjs charts Relative_PE_Dashboard.html"
+  },
+  "devDependencies": {
+    "playwright": "^1.49.0"
+  }
+}
