@@ -13,7 +13,12 @@
  *
  * Usage: node mkcharts.mjs [outDir] [dashboardPath]
  */
-import { chromium } from 'playwright-core';
+// Prefer the full `playwright` package (what CI installs, so it resolves its own downloaded
+// Chromium) and fall back to `playwright-core` for local runs, where the browser is supplied
+// out-of-band via CHROMIUM_PATH.
+let chromium;
+try { ({ chromium } = await import('playwright')); }
+catch { ({ chromium } = await import('playwright-core')); }
 import fs from 'fs';
 import path from 'path';
 
@@ -28,10 +33,13 @@ const PAIRS = [['FDS US','LSEG LN'],['MCO US','MSCI US'],['LPLA US','SCHW US'],[
 const SINGLES = ['XYZ US','ADYEN NA','CHYM US'];
 
 const slug = s => s.replace(/ /g, '').toLowerCase();
-const EXEC = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+// Point at an explicit binary when one is provided or the local sandbox copy is present;
+// otherwise let playwright resolve the Chromium it installed itself (the CI path).
+const EXEC = process.env.CHROMIUM_PATH
+  || ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find(p => fs.existsSync(p));
 
 fs.mkdirSync(OUT, { recursive: true });
-const browser = await chromium.launch({ executablePath: EXEC });
+const browser = await chromium.launch(EXEC ? { executablePath: EXEC } : {});
 // Width matters: drawChart() centres its last x-axis label on the final plotted point and
 // leaves only 14px of right padding, so at most widths that label is clipped by the canvas
 // edge (and clipped in the bitmap, not just the screenshot). Of the widths tried, a 960px

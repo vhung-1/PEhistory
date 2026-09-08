@@ -339,6 +339,7 @@ if __name__ == '__main__':
     print('built /tmp/pair_email.html (%.0f KB) asof %s | charts from %s'
           % (len(html) / 1024, d['asof'], CHART_BASE))
     if '--send' in sys.argv:
-        subj = 'Relative P/E — 1yr horizon — %s%s' % (
+        # 'Relative P/E Agent' leads the subject so an Outlook rule can categorise on it.
+        subj = 'Relative P/E Agent — 1yr horizon — %s%s' % (
             d['asof'], os.environ.get('PAIR_SUBJECT_TAG', ''))
         sys.exit(0 if send_brevo(html, subj) else 1)

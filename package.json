@@ -7,6 +7,6 @@
     "charts": "node mkcharts.mjs charts Relative_PE_Dashboard.html"
   },
   "devDependencies": {
-    "playwright-core": "^1.49.0"
+    "playwright": "^1.49.0"
   }
 }
