@@ -9,8 +9,15 @@ name: Daily relative P/E email
 #
 # GitHub Actions cron is always UTC and does not observe DST, so 08:00 UK moves between
 # 07:00 UTC (BST, summer) and 08:00 UTC (GMT, winter). Rather than switch the schedule twice a
-# year, we fire on BOTH and gate the send to the run where Europe/London is actually 08:00 — so
-# it lands at 8am UK year-round with no manual intervention.
+# year, we fire on BOTH and let exactly one of them own the day.
+#
+# The gate deliberately does NOT compare the clock at execution time. Actions' scheduler runs
+# late under load — on this repository, observed delays of 2h01m to 4h33m — so an "is it 08:00
+# in London now" test would essentially never pass. (That defect silently suppressed every run
+# of pe-email.yml: four runs, all green, all with the send step skipped.) Instead we gate on
+# WHICH cron triggered the run, via github.event.schedule, and pick the one that corresponds to
+# 08:00 London under the current UK offset. That is immune to delay: however late the runner
+# picks the job up, exactly one cron qualifies each day, including on both DST switchover days.
 #
 # Requires a repository secret BREVO_API_KEY (Settings -> Secrets and variables -> Actions).
 # Without it the send step fails loudly and the run is marked failed.
@@ -37,18 +44,22 @@ jobs:
         with:
           python-version: '3.x'
 
-      # A scheduled run only proceeds when it is really 08:00 in London; a manual
-      # (workflow_dispatch) run always proceeds.
-      - name: Gate to 08:00 Europe/London
+      # Proceed only for the cron that means 08:00 London today; a manual
+      # (workflow_dispatch) run always proceeds. See the note at the top of this file for why
+      # this checks the triggering cron rather than the current time.
+      - name: Gate to the 08:00 UK cron
         id: gate
         run: |
-          H=$(TZ='Europe/London' date +%H)
-          echo "London hour is $H"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "08" ]; then
+          set -euo pipefail
+          OFFSET=$(TZ='Europe/London' date +%z)          # +0100 during BST, +0000 during GMT
+          if [ "$OFFSET" = "+0100" ]; then WANT='0 7 * * *'; else WANT='0 8 * * *'; fi
+          GOT='${{ github.event.schedule }}'
+          echo "UK offset $OFFSET -> 08:00 UK is cron '$WANT'; this run was triggered by '$GOT'"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$GOT" = "$WANT" ]; then
             echo "proceed=yes" >> "$GITHUB_OUTPUT"
           else
             echo "proceed=no"  >> "$GITHUB_OUTPUT"
-            echo "Not 08:00 UK on this run — skipping (the other cron will handle it)."
+            echo "The other cron owns today — skipping."
           fi
 
       # Advisory only: the mail is still complete without images (the summary table and the
