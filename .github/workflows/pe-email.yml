@@ -5,8 +5,14 @@ name: Weekly P/E monitor email
 #
 # GitHub Actions cron is always UTC and does not observe DST, so 12:00 UK moves between
 # 11:00 UTC (BST, summer) and 12:00 UTC (GMT, winter). Rather than switch the schedule
-# twice a year, we fire on BOTH and gate the send to the run where Europe/London is
-# actually 12:00 — so it lands at noon UK year-round with no manual intervention.
+# twice a year, we fire on BOTH and let exactly one of them own the day.
+#
+# The gate deliberately does NOT compare the clock at execution time. This workflow
+# originally tested "is it 12:00 in London now", which suppressed every single run: four
+# fired, all green, all with the send step skipped, because Actions started them 2h01m to
+# 4h33m after their cron time and London was 14:00-16:00 by then. We now gate on WHICH cron
+# triggered the run, via github.event.schedule, choosing the one that corresponds to 12:00
+# London under the current UK offset — immune to delay, and exactly one qualifies per week.
 #
 # Requires a repository secret BREVO_API_KEY (Settings -> Secrets and variables ->
 # Actions). Without it the send step fails loudly and the run is marked failed.
@@ -33,18 +39,22 @@ jobs:
         with:
           python-version: '3'
 
-      # A scheduled run only proceeds when it is really 12:00 in London; a manual
-      # (workflow_dispatch) run always proceeds.
-      - name: Gate to 12:00 Europe/London
+      # Proceed only for the cron that means 12:00 London today; a manual
+      # (workflow_dispatch) run always proceeds. See the note at the top of this file for why
+      # this checks the triggering cron rather than the current time.
+      - name: Gate to the 12:00 UK cron
         id: gate
         run: |
-          H=$(TZ='Europe/London' date +%H)
-          echo "London hour is $H"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$H" = "12" ]; then
+          set -euo pipefail
+          OFFSET=$(TZ='Europe/London' date +%z)          # +0100 during BST, +0000 during GMT
+          if [ "$OFFSET" = "+0100" ]; then WANT='0 11 * * 6'; else WANT='0 12 * * 6'; fi
+          GOT='${{ github.event.schedule }}'
+          echo "UK offset $OFFSET -> 12:00 UK is cron '$WANT'; this run was triggered by '$GOT'"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "$GOT" = "$WANT" ]; then
             echo "proceed=yes" >> "$GITHUB_OUTPUT"
           else
             echo "proceed=no"  >> "$GITHUB_OUTPUT"
-            echo "Not 12:00 UK on this run — skipping (the other cron will handle it)."
+            echo "The other cron owns this week — skipping."
           fi
 
       - name: Send weekly P/E email
