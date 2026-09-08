@@ -32,9 +32,15 @@ const EXEC = process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome
 
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await chromium.launch({ executablePath: EXEC });
-// 820px viewport puts the chart host at ~760 CSS px; at dpr 2 that is a ~1520px PNG shown
-// at 560px in the mail, so it stays crisp on a retina screen without a heavy payload.
-const pg = await browser.newPage({ viewport: { width: 820, height: 760 }, deviceScaleFactor: 2 });
+// Width matters: drawChart() centres its last x-axis label on the final plotted point and
+// leaves only 14px of right padding, so at most widths that label is clipped by the canvas
+// edge (and clipped in the bitmap, not just the screenshot). Of the widths tried, a 960px
+// viewport leaves the most clearance -- ~30px, enough for a "28 Aug 26" label -- because it
+// happens to put the label stride on a kinder index. Re-check this if drawChart's padding or
+// label-density maths ever change.
+// 960px viewport -> ~878 CSS px of chart; at dpr 1.3 that is a ~1140px PNG shown at 560px in
+// the mail, i.e. ~2x for a retina screen without a needlessly heavy payload.
+const pg = await browser.newPage({ viewport: { width: 960, height: 760 }, deviceScaleFactor: 1.3 });
 await pg.goto('file://' + DASH);
 await pg.waitForFunction(() => typeof renderPairs === 'function' && typeof D !== 'undefined');
 await pg.waitForTimeout(400);

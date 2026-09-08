@@ -120,6 +120,11 @@ def pcol(p):
     """Colour a percentile only at a real extreme — see the note under the summary table."""
     return RED if p >= 60 else GREEN if p <= 40 else MUTED
 
+def pbar(p):
+    """Fill for the position bar. Mid-range uses a lighter grey than the text colour, which
+    is too heavy as a 90px block of solid fill."""
+    return RED if p >= 60 else GREEN if p <= 40 else '#AEB9C1'
+
 # ---------- building blocks ----------
 def kv(label, value, color=INK, bold=True):
     return ('<td><div class="k">{l}</div><div class="{w}" style="color:{c}">{v}</div></td>'
@@ -209,7 +214,7 @@ def build(d):
                '<td style="width:{w}px;height:9px;padding:0;background:{c};font-size:0;'
                'line-height:0;mso-line-height-rule:exactly"></td>'
                '<td style="padding:0;font-size:0;line-height:0"></td></tr></table>'
-               ).format(f=FAINT, L=LINE, w=w, c=pcol(st['pile']))
+               ).format(f=FAINT, L=LINE, w=w, c=pbar(st['pile']))
         tr.append(('<tr><td style="{td};font-weight:700;white-space:nowrap">{p}</td>'
                    '<td style="{td};text-align:right;color:{cc};font-weight:700">{cur}</td>'
                    '<td style="{td};text-align:right" >{mean}</td>'
