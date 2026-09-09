@@ -5,14 +5,14 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep) — still, on the 9 Sep workbook. Mon 7 Sep was
-                   # US Labor Day, and although Tue 8 Sep WAS a US trading day this pull does not carry
-                   # its US closes: 64 of the 71 US names are byte-identical to 4 Sep across both 7 and
-                   # 8 Sep, and the 7 that move shift by ~0.01-0.07 (consensus-EPS revisions, not price).
-                   # The 20 European names are genuinely current to 8 Sep. Taking ASOF=8 Sep would ship
-                   # two forward-filled US days AND mix a 8 Sep European leg against a 4 Sep US leg in
-                   # every cross-border pair, so it stays 4 Sep per CLAUDE.md §7a / §9.2 and the §10
-                   # diagnostic. A revisions-only refresh.
+ASOF='2026-09-08'  # latest settled US close (Tue 8 Sep): all 71 US names moved and none matches 4 Sep,
+                   # so this pull finally carries Tuesday's closes (the 9 Sep workbook did not). Wed 9 Sep
+                   # is today's intraday row (8 US names moved) and is excluded per CLAUDE.md §7a.
+                   # Mon 7 Sep (US Labor Day) is now an INTERIOR row and is kept, which is the six-year
+                   # precedent: every past US holiday is a row with the US names forward-filled and the
+                   # European names live (Labor Day 2025: 65/71 US unchanged, 2/20 EU). The ASOF cap
+                   # protects the *published* date, where stale US prices would corrupt every pair's
+                   # current reading; an interior holiday is a known one-day artifact (§7c, §10).
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
