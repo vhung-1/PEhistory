@@ -5,10 +5,14 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep). Workbook pulled Tue 8 Sep, but nothing after 4 Sep
-                   # is a settled US close: 5/6 Sep are the weekend (0 changes), Mon 7 Sep is US Labor Day
-                   # (only the 20 European names moved, no US close), and 8 Sep is today's intraday row
-                   # (6 names). All excluded per CLAUDE.md §7a — a revisions-only refresh.
+ASOF='2026-09-04'  # latest settled US close (Fri 4 Sep) — still, on the 9 Sep workbook. Mon 7 Sep was
+                   # US Labor Day, and although Tue 8 Sep WAS a US trading day this pull does not carry
+                   # its US closes: 64 of the 71 US names are byte-identical to 4 Sep across both 7 and
+                   # 8 Sep, and the 7 that move shift by ~0.01-0.07 (consensus-EPS revisions, not price).
+                   # The 20 European names are genuinely current to 8 Sep. Taking ASOF=8 Sep would ship
+                   # two forward-filled US days AND mix a 8 Sep European leg against a 4 Sep US leg in
+                   # every cross-border pair, so it stays 4 Sep per CLAUDE.md §7a / §9.2 and the §10
+                   # diagnostic. A revisions-only refresh.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
