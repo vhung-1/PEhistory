@@ -5,14 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-08'  # latest settled US close (Tue 8 Sep): all 71 US names moved and none matches 4 Sep,
-                   # so this pull finally carries Tuesday's closes (the 9 Sep workbook did not). Wed 9 Sep
-                   # is today's intraday row (8 US names moved) and is excluded per CLAUDE.md §7a.
-                   # Mon 7 Sep (US Labor Day) is now an INTERIOR row and is kept, which is the six-year
-                   # precedent: every past US holiday is a row with the US names forward-filled and the
-                   # European names live (Labor Day 2025: 65/71 US unchanged, 2/20 EU). The ASOF cap
-                   # protects the *published* date, where stale US prices would corrupt every pair's
-                   # current reading; an interior holiday is a known one-day artifact (§7c, §10).
+ASOF='2026-09-09'  # latest settled US close (Wed 9 Sep): all 71 US names moved and none matches
+                   # 8 Sep. Thu 10 Sep is today's intraday row — 2 US names moved and every US value
+                   # is identical to 9 Sep — excluded per CLAUDE.md §7a. Mon 7 Sep (US Labor Day)
+                   # remains an interior row, US forward-filled and Europe live, per the §10 precedent.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
