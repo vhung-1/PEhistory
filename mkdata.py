@@ -5,9 +5,9 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-09'  # latest settled US close (Wed 9 Sep): all 71 US names moved and none matches
-                   # 8 Sep. Thu 10 Sep is today's intraday row — 2 US names moved and every US value
-                   # is identical to 9 Sep — excluded per CLAUDE.md §7a. Mon 7 Sep (US Labor Day)
+ASOF='2026-09-10'  # latest settled US close (Thu 10 Sep): all 71 US names moved and none matches
+                   # 9 Sep. Fri 11 Sep is today's intraday row (4 US names moved, every US value
+                   # identical to 10 Sep) and is excluded per CLAUDE.md §7a. Mon 7 Sep (US Labor Day)
                    # remains an interior row, US forward-filled and Europe live, per the §10 precedent.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
