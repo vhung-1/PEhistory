@@ -5,12 +5,16 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-11'  # latest settled US close (Fri 11 Sep): all 71 US names and all 20 European
-                   # names moved, and no US value matches 10 Sep. The workbook was pulled Sun 13 Sep,
-                   # so Sat 12 / Sun 13 are weekend forward-fills (0 names change) and the weekday
-                   # filter drops them anyway — there is no intraday row to exclude this round.
-                   # Mon 7 Sep (US Labor Day) remains an interior row, US forward-filled and Europe
-                   # live, per the §10 precedent.
+ASOF='2026-09-14'  # latest settled US close (Mon 14 Sep): 70 of 71 US names and all 20 European
+                   # names moved, with only AB US unchanged. Tue 15 Sep is the pull-day row and shows
+                   # the §10 stale-US signature — 0 of 71 US names changed while all 20 Europeans
+                   # moved — so it is not a settled close and is excluded per §7a. Sat 12 / Sun 13 are
+                   # weekend rows (a few vendor estimate tweaks land on them) and the weekday filter
+                   # drops them.
+                   #
+                   # The DROP block that nulled TOST US 2026-09-11 has been REMOVED this round: the
+                   # vendor corrected the series, and 11 Sep now reads 24.29x (was 0.84x), sitting
+                   # normally between 24.16x on 10 Sep and 25.18x on 14 Sep.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -54,24 +58,6 @@ for _t,_m in HOLD.items():
         for _i,_d in enumerate(DATES):
             if _d in _m: PE[_t][_i] = _m[_d]
 
-# DROP — unusable sourced observations, removed (set null) rather than published or replaced.
-# Distinct from HOLD above: HOLD re-pins dates to values that WERE genuinely sourced from an
-# earlier workbook; DROP is for a date where no trustworthy value exists in any workbook, so the
-# only options are to publish a value known to be wrong or to drop it. CLAUDE.md §7's hard rule
-# ("if a series is unavailable, drop the name — do not invent values") makes dropping the correct
-# treatment; carrying the prior day forward would be fabrication.
-#
-# TOST US 2026-09-11: the workbook prints 0.84x, down from 24.16x on 10 Sep (-96.5% overnight),
-# and forward-fills it through Sat 12 / Sun 13. Toast's share price over the same day went
-# 31.94 -> 32.12 (+0.6%, S&P adjusted close), so the multiple moved 96.5% on a 0.6% price move:
-# the vendor's FY+1 EPS is wrong by ~29x, not a market event and not the annual FY+1 roll (§9b),
-# which steps by a growth rate of order 10%. lastVal() scans back to the last non-null, so the
-# cross-sectional tabs fall back to TOST's 10 Sep observation. Remove once the vendor corrects it.
-DROP = {'TOST US': ['2026-09-11']}
-for _t,_ds in DROP.items():
-    if _t in PE:
-        for _i,_d in enumerate(DATES):
-            if _d in _ds: PE[_t][_i] = None
 
 
 payload = dict(asof=DATES[-1], dates=DATES, sectors=SECTORS_F, sector_of=sec_of, excluded=excluded, pe=PE)
