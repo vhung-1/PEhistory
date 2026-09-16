@@ -55,7 +55,7 @@ PAIRS = [('FDS US','LSEG LN'), ('MCO US','MSCI US'), ('LPLA US','SCHW US'),
          ('EQT SS','CVC NA'),  ('BLK US','TROW US'),  ('LAZ US','PJT US'),
          ('EVR US','PJT US'),  ('EVR US','HLI US'),   ('MC US','PJT US'),
          ('AMUN FP','DWS GY'), ('SAVE SS','AZA SS')]
-SINGLES = ['XYZ US', 'ADYEN NA', 'CHYM US']
+SINGLES = ['XYZ US', 'ADYEN NA', 'CHYM US', 'MRX US']
 
 INK, MUTED, FAINT, LINE = '#16303B', '#6B7A85', '#F3F6F8', '#D8DEE3'
 # Dashboard convention (CLAUDE.md §9.5): green = cheap, red = rich.
@@ -67,7 +67,7 @@ SHORT = {
   'TPG US':'TPG','CG US':'Carlyle','EQT SS':'EQT','CVC NA':'CVC','BLK US':'BlackRock',
   'TROW US':'T. Rowe Price','LAZ US':'Lazard','PJT US':'PJT Partners','EVR US':'Evercore',
   'HLI US':'Houlihan Lokey','MC US':'Moelis','AMUN FP':'Amundi','DWS GY':'DWS','SAVE SS':'Nordnet',
-  'AZA SS':'Avanza','XYZ US':'Block','ADYEN NA':'Adyen','CHYM US':'Chime'}
+  'AZA SS':'Avanza','XYZ US':'Block','ADYEN NA':'Adyen','CHYM US':'Chime','MRX US':'Marex'}
 
 def sym(t): return t.rsplit(' ', 1)[0]
 def slug(t): return t.replace(' ', '').lower()
