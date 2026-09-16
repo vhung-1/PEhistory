@@ -5,16 +5,13 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-14'  # latest settled US close (Mon 14 Sep): 70 of 71 US names and all 20 European
-                   # names moved, with only AB US unchanged. Tue 15 Sep is the pull-day row and shows
-                   # the §10 stale-US signature — 0 of 71 US names changed while all 20 Europeans
-                   # moved — so it is not a settled close and is excluded per §7a. Sat 12 / Sun 13 are
-                   # weekend rows (a few vendor estimate tweaks land on them) and the weekday filter
-                   # drops them.
-                   #
-                   # The DROP block that nulled TOST US 2026-09-11 has been REMOVED this round: the
-                   # vendor corrected the series, and 11 Sep now reads 24.29x (was 0.84x), sitting
-                   # normally between 24.16x on 10 Sep and 25.18x on 14 Sep.
+ASOF='2026-09-15'  # latest settled US close (Tue 15 Sep): all 71 US and all 20 European names
+                   # moved, none matching 14 Sep. Last round this same date carried the §10 stale-US
+                   # signature (0 of 71 US changed) because it was then the pull-day row; the vendor
+                   # has since filled in real US pricing for it, which is exactly why it was held
+                   # back rather than published. Wed 16 Sep is now the pull-day row and shows that
+                   # signature in turn (1 of 71 US changed, all 20 Europeans moved), so it is
+                   # excluded per §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 

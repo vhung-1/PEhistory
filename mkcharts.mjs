@@ -30,7 +30,7 @@ const PAIRS = [['FDS US','LSEG LN'],['MCO US','MSCI US'],['LPLA US','SCHW US'],[
   ['HOOD US','IBKR US'],['V US','MA US'],['ARES US','BX US'],['KKR US','BX US'],['TPG US','CG US'],
   ['EQT SS','CVC NA'],['BLK US','TROW US'],['LAZ US','PJT US'],['EVR US','PJT US'],['EVR US','HLI US'],
   ['MC US','PJT US'],['AMUN FP','DWS GY'],['SAVE SS','AZA SS']];
-const SINGLES = ['XYZ US','ADYEN NA','CHYM US'];
+const SINGLES = ['XYZ US','ADYEN NA','CHYM US','MRX US'];
 
 const slug = s => s.replace(/ /g, '').toLowerCase();
 // Point at an explicit binary when one is provided or the local sandbox copy is present;
