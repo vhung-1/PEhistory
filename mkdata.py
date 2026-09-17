@@ -5,13 +5,13 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-15'  # latest settled US close (Tue 15 Sep): all 71 US and all 20 European names
-                   # moved, none matching 14 Sep. Last round this same date carried the §10 stale-US
-                   # signature (0 of 71 US changed) because it was then the pull-day row; the vendor
-                   # has since filled in real US pricing for it, which is exactly why it was held
-                   # back rather than published. Wed 16 Sep is now the pull-day row and shows that
-                   # signature in turn (1 of 71 US changed, all 20 Europeans moved), so it is
-                   # excluded per §7a.
+ASOF='2026-09-16'  # latest settled US close (Wed 16 Sep): all 71 US and all 20 European names
+                   # moved, none matching 15 Sep. This is the third round running where the date
+                   # that carried the §10 stale-US signature as the pull-day row turns out to be a
+                   # real close once the vendor fills in US pricing a day later — the reason the
+                   # pull-day row is always excluded rather than published. Thu 17 Sep is the
+                   # pull-day row now and shows that signature in turn (2 of 71 US changed, all 20
+                   # Europeans moved), so it is excluded per §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
