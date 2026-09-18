@@ -54,7 +54,7 @@ PAIRS = [('FDS US','LSEG LN'), ('MCO US','MSCI US'), ('LPLA US','SCHW US'),
          ('ARES US','BX US'),  ('KKR US','BX US'),    ('TPG US','CG US'),
          ('EQT SS','CVC NA'),  ('BLK US','TROW US'),  ('LAZ US','PJT US'),
          ('EVR US','PJT US'),  ('EVR US','HLI US'),   ('MC US','PJT US'),
-         ('AMUN FP','DWS GY'), ('SAVE SS','AZA SS')]
+         ('HLI US','PJT US'),  ('AMUN FP','DWS GY'),  ('SAVE SS','AZA SS')]
 SINGLES = ['XYZ US', 'ADYEN NA', 'CHYM US', 'MRX US']
 
 INK, MUTED, FAINT, LINE = '#16303B', '#6B7A85', '#F3F6F8', '#D8DEE3'
