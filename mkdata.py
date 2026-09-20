@@ -5,11 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-17'  # latest settled US close (Thu 17 Sep): all 71 US and all 20 European names
-                   # moved, none matching 16 Sep. Fourth round running that the prior pull-day row
-                   # turns out to be a real close once the vendor fills in US pricing a day later.
-                   # Fri 18 Sep is the pull-day row now and shows the §10 stale-US signature in turn
-                   # (1 of 71 US changed, all 20 Europeans moved), so it is excluded per §7a.
+ASOF='2026-09-18'  # latest settled US close (Fri 18 Sep): 69 of 71 US names and all 20 European
+                   # names moved, none of the Europeans matching 17 Sep. The workbook was pulled
+                   # Sun 20 Sep, so Sat 19 / Sun 20 are weekend rows and the weekday filter drops
+                   # them; there is no intraday row to exclude this round.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
