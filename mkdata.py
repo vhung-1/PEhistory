@@ -5,11 +5,11 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-21'  # latest settled US close (Mon 21 Sep): all 71 US and 19 of 20 European names
-                   # moved, no US value matching 18 Sep. Tue 22 Sep is the pull-day row and is the
-                   # starkest form of the §10 signature yet — NOTHING moved, 0 of 71 US and 0 of 20
-                   # European names, so the pull landed before any market data refreshed at all.
-                   # Excluded per §7a. Sat 19 / Sun 20 are weekend rows the weekday filter drops.
+ASOF='2026-09-22'  # latest settled US close (Tue 22 Sep): all 71 US and 19 of 20 European names
+                   # moved, no US value matching 21 Sep. Last round this date was the pull-day row
+                   # with NOTHING moving; the vendor has since filled it in. Wed 23 Sep is the
+                   # pull-day row now (0 of 71 US changed, 2 of 20 Europeans moved), so it is
+                   # excluded per §7a.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
