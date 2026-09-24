@@ -5,11 +5,11 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-22'  # latest settled US close (Tue 22 Sep): all 71 US and 19 of 20 European names
-                   # moved, no US value matching 21 Sep. Last round this date was the pull-day row
-                   # with NOTHING moving; the vendor has since filled it in. Wed 23 Sep is the
-                   # pull-day row now (0 of 71 US changed, 2 of 20 Europeans moved), so it is
-                   # excluded per §7a.
+ASOF='2026-09-23'  # latest settled US close (Wed 23 Sep): all 71 US and 19 of 20 European names
+                   # moved, no US value matching 22 Sep. Thu 24 Sep is the pull-day row (1 of 71 US
+                   # and 1 of 20 European names changed) and is excluded per §7a. The one unmoved
+                   # European name has been a different name each day (BGN IM 21 Sep, DB1 GY 22 Sep,
+                   # FBK IM 23 Sep), so it is an ordinary flat day, not a stale feed.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
