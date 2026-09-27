@@ -5,14 +5,14 @@ MONTHS=P['MONTHS']; PX=P['PX']; PE=D['pe']; DATES=D['dates']; SECOF=D['sector_of
 CLUSTERS=[['CME US','ICE US','NDAQ US','CBOE US'],['LSEG LN','DB1 GY','ENX FP'],['TW US','MKTX US'],
  ['SPGI US','MCO US'],['EFX US','TRU US','EXPN LN'],['MSCI US','SPGI US','FDS US'],['V US','MA US'],
  ['FIS US','FISV US','GPN US'],['PYPL US','XYZ US','ADYEN NA'],['TOST US','FOUR US','XYZ US'],
- ['AFRM US','KLAR US','SOFI US'],['SOFI US','CHYM US'],['CPAY US','WEX US'],['WU US','WISE LN','RELY LN'],
+ ['AFRM US','KLAR US','SOFI US'],['SOFI US','CHYM US'],['CPAY US','WEX US'],['WU US','WISE LN','RELY US'],
  ['LAZ US','EVR US','MC US','HLI US','PWP US','PJT US','PIPR US'],
  ['BX US','KKR US','APO US','ARES US','CG US','BAM US','TPG US','OWL US'],
  ['EQT SS','CVC NA','ICG LN','PGHN SW'],['STEP US','HLNE US'],
  ['BLK US','TROW US','BEN US','IVZ US','AB US'],['DWS GY','AMUN FP'],
  ['SCHW US','LPLA US','RJF US','SF US'],['SCHW US','IBKR US','HOOD US','ETOR US'],
  ['AZA SS','SAVE SS','IGG LN','AJB LN'],
- ['HOOD US','COIN US'],['COIN US','CRCL US'],['FTK GY','SQ SW','FBK IM'],['FBK IM','BGN IM']]
+ ['HOOD US','COIN US'],['COIN US','CRCL US'],['FTK GY','SQN SW','FBK IM'],['FBK IM','BGN IM']]
 ym=lambda s:s[:7]
 PEM={};mset=set()
 for t,a in PE.items():
