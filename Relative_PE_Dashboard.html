@@ -53,6 +53,36 @@ select{font-family:var(--sans);font-size:13px;font-weight:540;color:var(--ink);b
   background-repeat:no-repeat;background-position:right 11px center;width:100%;transition:.12s;}
 select:hover{border-color:var(--accent);}
 select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,139,.13);}
+/* custom basket picker (Pairs): one user-picked name list that either leg can use as an aggregate */
+.bkwrap{position:relative;}
+.bkwrap[hidden]{display:none;}
+.bkbtn{font-family:var(--sans);font-size:12.5px;font-weight:560;color:var(--ink2);background:var(--panel2);border:1px dashed var(--line2);border-radius:8px;padding:7px 11px;cursor:pointer;width:100%;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:10px;transition:.12s;}
+.bkbtn:hover,.bkbtn[aria-expanded="true"]{border-color:var(--accent);color:var(--ink);}
+.bkbtn:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,139,.13);}
+.bkbtn .bkn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;}
+.bkbtn .bkct{flex:none;font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent);}
+.bkpop{position:absolute;z-index:40;top:calc(100% + 6px);left:0;width:min(580px,calc(100vw - 32px));max-height:min(470px,72vh);display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line2);border-radius:11px;box-shadow:0 14px 36px -14px rgba(16,26,36,.38);}
+.bkpop[hidden]{display:none;}
+.pside.b .bkpop{left:auto;right:0;}
+.bkhead{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line);}
+.bkhead input{flex:1;min-width:0;font-family:var(--sans);font-size:12.5px;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:7px 10px;}
+.bkhead input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(14,124,139,.13);}
+.bklink{font-family:var(--sans);font-size:11.5px;font-weight:600;color:var(--accent);background:none;border:0;padding:4px 2px;cursor:pointer;white-space:nowrap;}
+.bklink:disabled{color:var(--faint);cursor:default;}
+.bklist{overflow:auto;padding:2px 12px 10px;overscroll-behavior:contain;}
+.bksec{margin-top:9px;}
+.bksec>label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:650;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);padding:3px 0 4px;cursor:pointer;}
+.bksec>label .n{font-family:var(--mono);font-size:10.5px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint);}
+.bknames{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:0 8px;}
+.bknames label{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11.5px;color:var(--ink2);padding:4px 3px;border-radius:5px;cursor:pointer;white-space:nowrap;}
+.bknames label:hover{background:var(--bg);}
+.bknames label.on{color:var(--ink);font-weight:600;}
+.bkpop input[type=checkbox]{accent-color:var(--accent);margin:0;flex:none;}
+.bkempty{padding:14px 2px;color:var(--muted);font-size:12px;}
+.bkfoot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 12px;border-top:1px solid var(--line);font-size:11px;line-height:1.35;color:var(--muted);}
+.bkdone{flex:none;font-family:var(--sans);font-size:12px;font-weight:600;color:#fff;background:var(--accent);border:0;border-radius:7px;padding:7px 15px;cursor:pointer;}
+.bkdone:hover{background:var(--accent-d);}
+@media (max-width:640px){.bkpop,.pside.b .bkpop{position:fixed;left:16px;right:16px;top:auto;bottom:16px;width:auto;max-height:72vh;}}
 .ctl{display:flex;flex-direction:column;gap:5px;}
 .ctl label{font-size:10px;font-weight:650;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
 
@@ -324,11 +354,13 @@ footer b{color:var(--muted);}
       <div class="pside a">
         <div class="sh">Name <b>A</b> · numerator</div>
         <div class="row"><select id="p-a-sector" aria-label="Sector for A"></select><select id="p-a" aria-label="Ticker A"></select></div>
+        <div class="bkwrap" data-leg="A" hidden><button type="button" class="bkbtn" aria-haspopup="dialog" aria-expanded="false"><span class="bkn">Pick basket names</span><span class="bkct"></span></button></div>
       </div>
       <div class="swapwrap"><button class="swap" id="p-swap" title="Swap A and B">⇄</button></div>
       <div class="pside b">
         <div class="sh">Name <b>B</b> · denominator</div>
         <div class="row"><select id="p-b-sector" aria-label="Sector for B"></select><select id="p-b" aria-label="Ticker B"></select></div>
+        <div class="bkwrap" data-leg="B" hidden><button type="button" class="bkbtn" aria-haspopup="dialog" aria-expanded="false"><span class="bkn">Pick basket names</span><span class="bkct"></span></button><div class="bkpop" id="bk-pop" role="dialog" aria-label="Custom basket" hidden><div class="bkhead"><input type="search" id="bk-q" placeholder="Filter names or sub-sectors" aria-label="Filter names" autocomplete="off"><button type="button" class="bklink" id="bk-clear">Clear all</button></div><div class="bklist" id="bk-list"></div><div class="bkfoot"><span id="bk-sum"></span><button type="button" class="bkdone" id="bk-done">Done</button></div></div></div>
       </div>
     </div>
 
@@ -698,7 +730,8 @@ function legSeries(leg,excl){
 }
 function pairSeriesG(a,b){const A=legSeries(a,isAgg(b)?null:b),B=legSeries(b,isAgg(a)?null:a),idx=[],val=[];if(!A||!B)return{idx,val};for(let i=0;i<N;i++){if(A[i]!=null&&B[i]!=null){idx.push(i);val.push(A[i]/B[i]-1);}}return{idx,val};}
 function legLabel(leg){if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'?' median':' avg');return leg;}
-function legSecOf(leg){return isAgg(leg)?leg.slice(5):SECOF[leg];}
+// a custom basket counts as one sub-sector only when every member it uses (other leg left out) is in it
+function legSecOf(leg,excl){if(isAgg(leg)){const sec=leg.slice(5);if(sec!==CUSTOM)return sec;const ss=new Set(namesIn(CUSTOM).filter(t=>PE[t]&&t!==excl).map(t=>SECOF[t]));return ss.size===1?[...ss][0]:CUSTOM;}return SECOF[leg];}
 function sliceMonths(ps,m){if(!m||ps.idx.length===0)return ps;const lastDate=new Date(D[ps.idx[ps.idx.length-1]]+'T00:00:00');const cut=new Date(lastDate);cut.setMonth(cut.getMonth()-m);const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){if(new Date(D[ps.idx[k]]+'T00:00:00')>=cut){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
 function stat(v){if(v.length===0)return null;const n=v.length;const mean=v.reduce((s,x)=>s+x,0)/n;const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));const cur=v[n-1];const below=v.filter(x=>x<cur).length;return{mean,sd,cur,n,min:Math.min(...v),max:Math.max(...v),pile:below/n*100,z:sd?(cur-mean)/sd:0};}
 function nameStats(t){const a=PE[t];const vals=[],idx=[];for(let i=0;i<N;i++)if(a[i]!=null){vals.push(a[i]);idx.push(i);}if(!vals.length)return null;const cur=vals[vals.length-1];const lastD=new Date(D[idx[idx.length-1]]+'T00:00:00');const after=(m)=>{const c=new Date(lastD);c.setMonth(c.getMonth()-m);let s=0,k=0;for(let j=0;j<idx.length;j++){if(new Date(D[idx[j]]+'T00:00:00')>=c){s+=vals[j];k++;}}return k?s/k:null;};const mean=vals.reduce((s,x)=>s+x,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,x)=>s+(x-mean)**2,0)/(vals.length>1?vals.length-1:1));const below=vals.filter(x=>x<cur).length;
@@ -730,13 +763,24 @@ const ST={aSec:'Exchanges',A:'TW US',bSec:'Exchanges',B:'MKTX US',m:36,tab:'pair
 
 function fillSel(sel,items,val){sel.innerHTML='';items.forEach(t=>{const o=document.createElement('option');o.value=t;o.textContent=t;if(t===val)o.selected=true;sel.appendChild(o);});}
 function sectorList(){return Object.keys(SEC);}
-function namesIn(sec){return sec==='All coverage'?ALL_TICKERS:SEC[sec];}
+function namesIn(sec){return sec==='All coverage'?ALL_TICKERS:sec===CUSTOM?ST.basket:SEC[sec];}
+// ---------- custom basket (Pairs) ----------
+// A user-picked list of names that either Pairs leg can use like a sub-sector: the legs
+// "~avg~Custom basket" / "~med~Custom basket" go through legSeries unchanged, so the basket is
+// equal-weighted and always leaves out the other leg's ticker. Saved in this viewer's browser only.
+// Members are kept in the picker's own order (sub-sector, then coverage order), so a basket holding a
+// whole sub-sector reproduces that sub-sector's built-in aggregate exactly.
+const CUSTOM='Custom basket',BK_KEY='pehistory.pairs.basket',BK_ORDER=sectorList().flatMap(s=>SEC[s]);
+function loadBasket(){try{const v=JSON.parse(localStorage.getItem(BK_KEY)||'[]');return Array.isArray(v)?BK_ORDER.filter(t=>v.includes(t)):[];}catch(e){return [];}}
+function saveBasket(){try{localStorage.setItem(BK_KEY,JSON.stringify(ST.basket));}catch(e){}}
+ST.basket=loadBasket();
+function basketEmptyFor(leg,other){return isAgg(leg)&&leg.slice(5)===CUSTOM&&!namesIn(CUSTOM).some(t=>PE[t]&&t!==(isAgg(other)?null:other));}
 
 const aSecSel=document.getElementById('p-a-sector'),pA=document.getElementById('p-a'),
       bSecSel=document.getElementById('p-b-sector'),pB=document.getElementById('p-b');
 function initPairControls(){
-  fillSel(aSecSel,['All coverage',...sectorList()],ST.aSec);
-  fillSel(bSecSel,['All coverage',...sectorList()],ST.bSec);
+  fillSel(aSecSel,['All coverage',...sectorList(),CUSTOM],ST.aSec);
+  fillSel(bSecSel,['All coverage',...sectorList(),CUSTOM],ST.bSec);
   refreshPairNames();
 }
 function fillSelV(sel,items,val){sel.innerHTML='';items.forEach(it=>{const o=document.createElement('option');o.value=it.v;o.textContent=it.t;if(it.v===val)o.selected=true;sel.appendChild(o);});}
@@ -744,9 +788,11 @@ function legOptions(sec){return [{v:'~avg~'+sec,t:sec+' \u2014 average'},{v:'~me
 function remapAgg(leg,sec){return isAgg(leg)?leg.slice(0,5)+sec:leg;}
 function refreshPairNames(){
   ST.A=remapAgg(ST.A,ST.aSec); ST.B=remapAgg(ST.B,ST.bSec);
-  const ao=legOptions(ST.aSec); if(!ao.some(x=>x.v===ST.A))ST.A=namesIn(ST.aSec)[0]; fillSelV(pA,ao,ST.A);
-  const bo=legOptions(ST.bSec); if(!bo.some(x=>x.v===ST.B))ST.B=namesIn(ST.bSec)[0]; fillSelV(pB,bo,ST.B);
+  const ao=legOptions(ST.aSec); if(!ao.some(x=>x.v===ST.A))ST.A=legDefault(ST.aSec); fillSelV(pA,ao,ST.A);
+  const bo=legOptions(ST.bSec); if(!bo.some(x=>x.v===ST.B))ST.B=legDefault(ST.bSec); fillSelV(pB,bo,ST.B);
+  syncBasketUI();
 }
+function legDefault(sec){return sec===CUSTOM?'~avg~'+CUSTOM:namesIn(sec)[0];}
 
 // ---------- PAIRS ----------
 const cv=document.getElementById('chart'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
@@ -756,7 +802,8 @@ function renderPairs(){
   const ps=sliceMonths(full,ST.m);
   const s=stat(ps.val);
   const _mk=ST.A+'|'+ST.B+'|'+ST.m; if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
-  const sameSec=legSecOf(ST.A)===legSecOf(ST.B);
+  const bkEmpty=basketEmptyFor(ST.A,ST.B)||basketEmptyFor(ST.B,ST.A);
+  const sameSec=bkEmpty||legSecOf(ST.A,isAgg(ST.B)?null:ST.B)===legSecOf(ST.B,isAgg(ST.A)?null:ST.A);
   document.getElementById('c-title').innerHTML=`${legLabel(ST.A)} <span>÷</span> ${legLabel(ST.B)} <span>— premium / discount${sameSec?'':' · cross-sector'}</span>`;
   const cards=[
     {k:'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
@@ -775,18 +822,24 @@ function renderPairs(){
     document.getElementById('g-min').textContent=sgn(s.min,0);
     document.getElementById('g-max').textContent=sgn(s.max,0);
     document.getElementById('p-note').innerHTML=`${legLabel(ST.A)} currently trades at <b>${sgn(s.cur)}</b> versus ${legLabel(ST.B)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} its ${ST.m?ST.m/12+'-yr':'full-history'} average of <b>${sgn(s.mean)}</b> — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
-    if(isAgg(ST.A)||isAgg(ST.B)){const aggIsB=isAgg(ST.B);const asec=aggIsB?legSecOf(ST.B):legSecOf(ST.A);const other=aggIsB?ST.A:ST.B;const excl=isAgg(other)?null:other;const cnt=namesIn(asec).filter(t=>PE[t]&&t!==excl).length;const noteEx=(excl&&SECOF[excl]===asec)?(', excluding '+excl+' itself'):'';document.getElementById('p-note').innerHTML+=` <span style="color:var(--muted)">Sub-sector leg = equal-weighted ${isAgg(ST.A)&&isAgg(ST.B)?'aggregates':'average'} across ${cnt} ${asec} names with P/E${noteEx}.</span>`;}
-  } else { document.getElementById('p-note').innerHTML='No overlapping history for this pair in the selected window.'; }
-  drawChart(ps);
+    if(isAgg(ST.A)||isAgg(ST.B)){
+      const both=isAgg(ST.A)&&isAgg(ST.B),notes=[];
+      const legs=both&&ST.A.slice(5)!==CUSTOM&&ST.B.slice(5)!==CUSTOM?[[ST.B,ST.A]]:[[ST.A,ST.B],[ST.B,ST.A]];
+      legs.forEach(([leg,other])=>{if(!isAgg(leg))return;const asec=leg.slice(5),excl=isAgg(other)?null:other,mem=namesIn(asec).filter(t=>PE[t]&&t!==excl);
+        if(asec===CUSTOM)notes.push(`Custom basket = ${leg.slice(1,4)==='med'?'median':'equal-weighted average'} of ${mem.length} name${mem.length===1?'':'s'}: ${mem.slice(0,12).join(', ')}${mem.length>12?` and ${mem.length-12} more`:''}${excl&&ST.basket.includes(excl)?` (${excl} is left out because it is the other leg)`:''}.`);
+        else{const noteEx=(excl&&SECOF[excl]===asec)?(', excluding '+excl+' itself'):'';notes.push(`Sub-sector leg = equal-weighted ${both?'aggregates':'average'} across ${mem.length} ${asec} names with P/E${noteEx}.`);}});
+      document.getElementById('p-note').innerHTML+=` <span style="color:var(--muted)">${notes.join(' ')}</span>`;}
+  } else { document.getElementById('p-note').innerHTML=bkEmpty?'The custom basket has no names to compare against yet. Tick names in the basket list (the other leg is always left out).':'No overlapping history for this pair in the selected window.'; }
+  drawChart(ps,bkEmpty?'Pick names for the custom basket':'');
   renderMeasure();
 }
-function drawChart(ps){
+function drawChart(ps,emptyMsg){
   const host=cv.parentElement,dpr=window.devicePixelRatio||1;
   const W=host.clientWidth,H=host.clientHeight;
   cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
   const v=ps.val,ix=ps.idx,n=v.length;
   const padL=54,padR=14,padT=14,padB=30,plotW=W-padL-padR,plotH=H-padT-padB;
-  if(n<2){ctx.fillStyle='#9AA8B2';ctx.font='13px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='center';ctx.fillText('Not enough overlapping data',W/2,H/2);CHART={};return;}
+  if(n<2){ctx.fillStyle='#9AA8B2';ctx.font='13px '+getComputedStyle(document.body).fontFamily;ctx.textAlign='center';ctx.fillText(emptyMsg||'Not enough overlapping data',W/2,H/2);CHART={};return;}
   const mean=v.reduce((s,x)=>s+x,0)/n;
   let lo=Math.min(...v,mean),hi=Math.max(...v,mean);
   if(lo>0)lo=Math.min(lo,0);if(hi<0)hi=Math.max(hi,0);
@@ -1191,8 +1244,42 @@ function switchTab(t){
 document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
 
 // ---------- wire ----------
-aSecSel.onchange=()=>{ST.aSec=aSecSel.value;refreshPairNames();renderPairs();};
-bSecSel.onchange=()=>{ST.bSec=bSecSel.value;refreshPairNames();renderPairs();};
+aSecSel.onchange=()=>{ST.aSec=aSecSel.value;if(ST.aSec===CUSTOM&&!isAgg(ST.A))ST.A='~avg~'+CUSTOM;refreshPairNames();renderPairs();if(ST.aSec===CUSTOM&&!ST.basket.length)openBasket('A');};
+bSecSel.onchange=()=>{ST.bSec=bSecSel.value;if(ST.bSec===CUSTOM&&!isAgg(ST.B))ST.B='~avg~'+CUSTOM;refreshPairNames();renderPairs();if(ST.bSec===CUSTOM&&!ST.basket.length)openBasket('B');};
+// custom basket picker: one shared popover, moved under whichever leg's button opened it
+const bkPop=document.getElementById('bk-pop'),bkList=document.getElementById('bk-list'),bkQ=document.getElementById('bk-q');
+function bkWrap(leg){return document.querySelector('.bkwrap[data-leg="'+leg+'"]');}
+function syncBasketUI(){
+  const n=ST.basket.length;
+  ['A','B'].forEach(leg=>{const w=bkWrap(leg);w.hidden=(leg==='A'?ST.aSec:ST.bSec)!==CUSTOM;
+    w.querySelector('.bkn').textContent=n?ST.basket.map(legRoot).join(', '):'Pick basket names';
+    w.querySelector('.bkct').textContent=n?n+(n===1?' name':' names'):'';});
+  if(!bkPop.hidden&&bkPop.parentElement.hidden)closeBasket(false);
+  document.getElementById('bk-clear').disabled=!n;
+  document.getElementById('bk-sum').textContent=n?`${n} selected · choose average or median in the menu above`:'Tick the names the basket should hold.';
+}
+function openBasket(leg){const w=bkWrap(leg);if(!w||w.hidden)return;w.appendChild(bkPop);bkPop.hidden=false;w.querySelector('.bkbtn').setAttribute('aria-expanded','true');renderBasketList();bkPop.scrollIntoView({block:'nearest'});if(matchMedia('(pointer:fine)').matches)bkQ.focus({preventScroll:true});}
+function closeBasket(refocus){if(bkPop.hidden)return;bkPop.hidden=true;const b=bkPop.parentElement.querySelector('.bkbtn');b.setAttribute('aria-expanded','false');if(refocus)b.focus();}
+function renderBasketList(){
+  const q=bkQ.value.trim().toLowerCase();let html='';
+  sectorList().forEach(sec=>{const all=sec.toLowerCase().includes(q),names=SEC[sec].filter(t=>PE[t]&&(!q||all||t.toLowerCase().includes(q)));if(!names.length)return;
+    html+=`<div class="bksec"><label><input type="checkbox" data-sec="${esc(sec)}">${esc(sec)} <span class="n"></span></label><div class="bknames">`+names.map(t=>`<label><input type="checkbox" data-t="${esc(t)}">${esc(t)}</label>`).join('')+'</div></div>';});
+  bkList.innerHTML=html||'<div class="bkempty">No names match.</div>';paintBasketList();
+}
+function paintBasketList(){const sel=new Set(ST.basket);bkList.querySelectorAll('.bksec').forEach(box=>{const cbs=[...box.querySelectorAll('input[data-t]')];let k=0;
+  cbs.forEach(x=>{const on=sel.has(x.dataset.t);x.checked=on;x.parentElement.classList.toggle('on',on);if(on)k++;});
+  const h=box.querySelector('input[data-sec]');h.checked=k===cbs.length;h.indeterminate=k>0&&k<cbs.length;box.querySelector('.n').textContent=k+'/'+cbs.length;});}
+function setBasket(sel){ST.basket=BK_ORDER.filter(t=>sel.has(t));saveBasket();refreshPairNames();renderPairs();paintBasketList();}
+bkList.addEventListener('change',e=>{const cb=e.target;if(!cb.matches('input[type=checkbox]'))return;const sel=new Set(ST.basket);
+  if(cb.dataset.t)cb.checked?sel.add(cb.dataset.t):sel.delete(cb.dataset.t);
+  else cb.closest('.bksec').querySelectorAll('input[data-t]').forEach(x=>cb.checked?sel.add(x.dataset.t):sel.delete(x.dataset.t));
+  setBasket(sel);});
+bkQ.addEventListener('input',renderBasketList);
+document.getElementById('bk-clear').onclick=()=>setBasket(new Set());
+document.getElementById('bk-done').onclick=()=>closeBasket(true);
+document.querySelectorAll('.bkwrap .bkbtn').forEach(b=>b.onclick=()=>{const w=b.parentElement,open=!bkPop.hidden&&bkPop.parentElement===w;closeBasket(false);if(!open)openBasket(w.dataset.leg);});
+document.addEventListener('pointerdown',e=>{if(!bkPop.hidden&&!bkPop.parentElement.contains(e.target))closeBasket(false);});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!bkPop.hidden)closeBasket(true);});
 pA.onchange=()=>{ST.A=pA.value;renderPairs();};
 pB.onchange=()=>{ST.B=pB.value;renderPairs();};
 document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,ST.bSec]=[ST.bSec,ST.aSec];initPairControls();renderPairs();};
