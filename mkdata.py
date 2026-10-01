@@ -5,11 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-09-29'  # latest settled US close (Tue 29 Sep): at full precision 90 of 91 names moved
-                   # (DB1 GY the one raw-identical name; it rotates). Eight more moved by <0.005x,
-                   # so at 2 dp 64/71 US and 18/20 European changed: a quiet day, not a stale feed.
-                   # The workbook was pulled Wed 30 Sep; that pull-day row (0 US, 1 European name
-                   # changed) is the forward-fill, so it is excluded.
+ASOF='2026-09-30'  # latest settled US close (Wed 30 Sep, September month-end): all 91 names moved
+                   # at full precision (70/71 US and 20/20 European at 2 dp). The workbook was pulled
+                   # Thu 1 Oct; that pull-day row (5 US, 11 European names changed, Europe intraday)
+                   # is a partial row, so it is excluded.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
