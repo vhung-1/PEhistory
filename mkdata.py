@@ -5,10 +5,11 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-10-02'  # latest settled US close (Fri 2 Oct): all 91 names moved at full precision
-                   # (71/71 US and 19/20 European at 2 dp). The workbook was pulled Sun 4 Oct, so
-                   # Sat 3 / Sun 4 are weekend forward-fills (0 names change) that the weekday filter
-                   # drops; there is no intraday row to exclude this round.
+ASOF='2026-10-05'  # latest settled US close (Mon 5 Oct): all 91 names moved at full precision
+                   # (70/71 US and 19/20 European at 2 dp). The workbook was pulled Tue 6 Oct at
+                   # 13:43 UTC, with Europe trading and the US not yet open; that pull-day row (17 US,
+                   # 19 European names changed) is intraday, so it is excluded. Sat 3 / Sun 4 are
+                   # weekend rows the filter drops.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
