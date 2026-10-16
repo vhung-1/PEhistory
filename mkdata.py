@@ -5,10 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-10-14'  # latest settled US close (Wed 14 Oct): all 91 names moved at full precision.
-                   # The workbook was pulled Thu 15 Oct at 07:09 UTC, minutes after Europe opened and
-                   # before the US; that pull-day row (4 US, 19 European names changed) is intraday,
-                   # so it is excluded.
+ASOF='2026-10-15'  # latest settled US close (Thu 15 Oct): 90/91 names moved at full precision
+                   # (SQN SW identical). The workbook was pulled Fri 16 Oct at 06:24 UTC, before any
+                   # market opened; that pull-day row (15 US, 1 European names changed) is the early
+                   # forward-fill, so it is excluded.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -52,6 +52,24 @@ for _t,_m in HOLD.items():
         for _i,_d in enumerate(DATES):
             if _d in _m: PE[_t][_i] = _m[_d]
 
+# DROP — unusable sourced observations, removed (set null) rather than published or replaced.
+# Distinct from HOLD above: HOLD re-pins dates to values that WERE genuinely sourced from an
+# earlier workbook; DROP is for a date where no trustworthy value exists in any workbook, so the
+# only options are to publish a value known to be wrong or to drop it. CLAUDE.md §7's hard rule
+# ("if a series is unavailable, drop the name — do not invent values") makes dropping the correct
+# treatment; carrying the prior day forward would be fabrication.
+#
+# CRCL US 2026-10-15: the workbook prints 1.79x, down from 51.31x on 14 Oct (-96.5% overnight),
+# and forward-fills it into the 16 Oct pull-day row. Circle's share price over the same day went
+# 79.55 -> 86.97 (+9.3%, S&P adjusted close), so the vendor's FY+1 EPS is wrong by ~31x: not a
+# market event and not the annual FY+1 roll (§9b). Same signature as TOST US on 2026-09-11, which
+# the vendor fixed three days later. lastVal() scans back to the last non-null, so the
+# cross-sectional tabs fall back to CRCL's 14 Oct observation. Remove once the vendor corrects it.
+DROP = {'CRCL US': ['2026-10-15']}
+for _t,_ds in DROP.items():
+    if _t in PE:
+        for _i,_d in enumerate(DATES):
+            if _d in _ds: PE[_t][_i] = None
 
 
 payload = dict(asof=DATES[-1], dates=DATES, sectors=SECTORS_F, sector_of=sec_of, excluded=excluded, pe=PE)
