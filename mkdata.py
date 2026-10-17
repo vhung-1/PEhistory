@@ -5,10 +5,9 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-10-15'  # latest settled US close (Thu 15 Oct): 90/91 names moved at full precision
-                   # (SQN SW identical). The workbook was pulled Fri 16 Oct at 06:24 UTC, before any
-                   # market opened; that pull-day row (15 US, 1 European names changed) is the early
-                   # forward-fill, so it is excluded.
+ASOF='2026-10-16'  # latest settled US close (Fri 16 Oct): all 91 names moved at full precision.
+                   # The workbook was pulled Sat 17 Oct 16:00 UTC; the Sat 17 Oct row is a weekend
+                   # forward-fill (0 changes) and is excluded by the weekday filter below.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -65,7 +64,17 @@ for _t,_m in HOLD.items():
 # market event and not the annual FY+1 roll (§9b). Same signature as TOST US on 2026-09-11, which
 # the vendor fixed three days later. lastVal() scans back to the last non-null, so the
 # cross-sectional tabs fall back to CRCL's 14 Oct observation. Remove once the vendor corrects it.
-DROP = {'CRCL US': ['2026-10-15']}
+# 2026-10-17 workbook: NOT fixed. 10-15 is unchanged at 1.79x, and 16 Oct prints 1.69x. That day's
+# -5.46% P/E move matches the share price's -5.46% (86.97 -> 82.22), so the vendor has simply carried
+# the broken EPS (implied ~48.5 against ~1.55 before) forward. 16 Oct is the same blow-up; dropped too.
+#
+# SPGI US 2026-10-16: the workbook prints 12.07x, down from 21.06x on 15 Oct (-42.7% overnight), while
+# S&P Global's share price rose +1.14% (424.81 -> 429.64). Implied FY+1 EPS jumps from 20.17 to 35.60
+# in one day. The S&P pull shows no corporate action (adjusted-price ratio between pulls exactly 1.0),
+# SPGI's annual roll is in February, and Capital IQ's FY2027 normalized EPS consensus is 20.17 mean
+# (range 19.54-21.01): the pre-break Bloomberg level matched it exactly, and 35.60 is 70% above the
+# highest single estimate. A vendor error on a brand-new date. Remove once the vendor corrects it.
+DROP = {'CRCL US': ['2026-10-15', '2026-10-16'], 'SPGI US': ['2026-10-16']}
 for _t,_ds in DROP.items():
     if _t in PE:
         for _i,_d in enumerate(DATES):
