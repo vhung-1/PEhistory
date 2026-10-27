@@ -104,10 +104,13 @@ canvas{display:block;width:100%;height:100%;}
 .tip{position:absolute;pointer-events:none;background:var(--ink);color:#fff;border-radius:7px;padding:7px 10px;font-size:11px;line-height:1.5;opacity:0;transition:opacity .1s;z-index:5;box-shadow:0 4px 14px rgba(0,0,0,.25);white-space:nowrap;}
 .tip .d{color:var(--faint);font-size:10px;letter-spacing:.4px;margin-bottom:1px;}
 .tip b{font-family:var(--mono);font-variant-numeric:tabular-nums;}
-.ranges{display:inline-flex;gap:2px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:3px;}
+.ranges{display:inline-flex;flex-wrap:wrap;max-width:100%;gap:2px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:3px;}
 .ranges button{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--muted);background:none;border:0;padding:6px 13px;border-radius:6px;cursor:pointer;transition:.12s;letter-spacing:.3px;}
 .ranges button:hover{color:var(--ink);}
 .ranges button[aria-selected="true"]{background:var(--ink);color:#fff;}
+.ranges .crange{display:none;align-items:center;gap:5px;margin-left:4px;padding:0 3px 0 8px;border-left:1px solid var(--line2);font-family:var(--mono);font-size:11px;color:var(--muted);}
+.ranges .crange.on{display:inline-flex;}
+.ranges .crange input{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--panel);border:1px solid var(--line2);border-radius:5px;padding:3px 5px;}
 .chart-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;gap:18px;flex-wrap:wrap;}
 
 .gauge{flex:1;min-width:260px;}
@@ -732,7 +735,47 @@ function pairSeriesG(a,b){const A=legSeries(a,isAgg(b)?null:b),B=legSeries(b,isA
 function legLabel(leg){if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'?' median':' avg');return leg;}
 // a custom basket counts as one sub-sector only when every member it uses (other leg left out) is in it
 function legSecOf(leg,excl){if(isAgg(leg)){const sec=leg.slice(5);if(sec!==CUSTOM)return sec;const ss=new Set(namesIn(CUSTOM).filter(t=>PE[t]&&t!==excl).map(t=>SECOF[t]));return ss.size===1?[...ss][0]:CUSTOM;}return SECOF[leg];}
-function sliceMonths(ps,m){if(!m||ps.idx.length===0)return ps;const lastDate=new Date(D[ps.idx[ps.idx.length-1]]+'T00:00:00');const cut=new Date(lastDate);cut.setMonth(cut.getMonth()-m);const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){if(new Date(D[ps.idx[k]]+'T00:00:00')>=cut){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
+// ---------- history windows ----------
+// A tab's window is a month count for the 1Y/3Y/5Y/Max buttons (0 = full history), or {from,to}
+// (ISO dates, both inclusive) for the Custom button.
+function isCW(m){return !!m&&typeof m==='object';}
+function sliceRange(ps,w){const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){const d=D[ps.idx[k]];if(d>=w.from&&d<=w.to){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
+const winMon=d=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+d.slice(5,7)-1]+' '+d.slice(2,4);
+// how a window reads in notes ("3-yr" / "03 Mar 25 – 23 Oct 26") and on small labels ("3y" / "Mar 25–Oct 26")
+function winText(m){return isCW(m)?fmtMonD(m.from)+' – '+fmtMonD(m.to):(m?m/12+'-yr':'full-history');}
+function winShort(m){return isCW(m)?winMon(m.from)+'–'+winMon(m.to):(m?m/12+'y':'max');}
+// a custom window that stops before the latest date, so its last value is history rather than today
+function winEndsEarly(m){return isCW(m)&&m.to<D[N-1];}
+// the dates a preset covers today; seeds the Custom inputs so that switching to Custom changes nothing
+function winBounds(m){if(!m)return{from:D[0],to:D[N-1]};const c=new Date(D[N-1]+'T00:00:00');c.setMonth(c.getMonth()-m);
+  const cs=c.getFullYear()+'-'+String(c.getMonth()+1).padStart(2,'0')+'-'+String(c.getDate()).padStart(2,'0');
+  return{from:D.find(d=>d>=cs)||D[0],to:D[N-1]};}
+// typed dates -> a usable window: in order, clamped to the panel, snapped to trading days, at least two of them
+function snapWin(f,t){if(!f||!t)return null;if(f>t){const x=f;f=t;t=x;}
+  let i=D.findIndex(d=>d>=f);if(i<0)i=N-1;let j=0;for(let k=N-1;k>=0;k--)if(D[k]<=t){j=k;break;}
+  if(j<=i){if(i>=N-1)i=N-2;j=i+1;}
+  return{from:D[i],to:D[j]};}
+// Wire a range button group: appends a Custom button whose From/To dates set a {from,to} window.
+// get/set read and write the tab's window state; render redraws the tab.
+function wireRange(id,get,set,render){
+  const g=document.getElementById(id);if(!g)return;
+  const cb=document.createElement('button');cb.dataset.m='c';cb.textContent='Custom';cb.title='Pick your own start and end dates';g.appendChild(cb);
+  const sp=document.createElement('span');sp.className='crange';
+  sp.innerHTML='<input type="date" aria-label="Window start"><span>to</span><input type="date" aria-label="Window end">';
+  g.appendChild(sp);
+  const [fi,ti]=sp.querySelectorAll('input');fi.min=ti.min=D[0];fi.max=ti.max=D[N-1];
+  fi.onchange=ti.onchange=()=>{const w=snapWin(fi.value,ti.value);if(!w)return;set(w);syncRange(id,w);render();};
+  g.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    if(b.dataset.m==='c'){if(!isCW(get()))set(winBounds(get()));}else set(+b.dataset.m);
+    syncRange(id,get());render();});
+  syncRange(id,get());
+}
+// mark the active button, and show the custom dates while Custom is the active one
+function syncRange(id,m){const g=document.getElementById(id);if(!g)return;const cw=isCW(m);
+  g.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.m==='c'?cw:(!cw&&+b.dataset.m===m)));
+  const sp=g.querySelector('.crange');if(!sp)return;sp.classList.toggle('on',cw);
+  if(cw){const [fi,ti]=sp.querySelectorAll('input');fi.value=m.from;ti.value=m.to;}}
+function sliceMonths(ps,m){if(isCW(m))return sliceRange(ps,m);if(!m||ps.idx.length===0)return ps;const lastDate=new Date(D[ps.idx[ps.idx.length-1]]+'T00:00:00');const cut=new Date(lastDate);cut.setMonth(cut.getMonth()-m);const idx=[],val=[];for(let k=0;k<ps.idx.length;k++){if(new Date(D[ps.idx[k]]+'T00:00:00')>=cut){idx.push(ps.idx[k]);val.push(ps.val[k]);}}return{idx,val};}
 function stat(v){if(v.length===0)return null;const n=v.length;const mean=v.reduce((s,x)=>s+x,0)/n;const sd=Math.sqrt(v.reduce((s,x)=>s+(x-mean)**2,0)/(n>1?n-1:1));const cur=v[n-1];const below=v.filter(x=>x<cur).length;return{mean,sd,cur,n,min:Math.min(...v),max:Math.max(...v),pile:below/n*100,z:sd?(cur-mean)/sd:0};}
 function nameStats(t){const a=PE[t];const vals=[],idx=[];for(let i=0;i<N;i++)if(a[i]!=null){vals.push(a[i]);idx.push(i);}if(!vals.length)return null;const cur=vals[vals.length-1];const lastD=new Date(D[idx[idx.length-1]]+'T00:00:00');const after=(m)=>{const c=new Date(lastD);c.setMonth(c.getMonth()-m);let s=0,k=0;for(let j=0;j<idx.length;j++){if(new Date(D[idx[j]]+'T00:00:00')>=c){s+=vals[j];k++;}}return k?s/k:null;};const mean=vals.reduce((s,x)=>s+x,0)/vals.length;const sd=Math.sqrt(vals.reduce((s,x)=>s+(x-mean)**2,0)/(vals.length>1?vals.length-1:1));const below=vals.filter(x=>x<cur).length;
   // a5 is a genuine trailing 60-month window (it previously used the full-history mean, which
@@ -801,14 +844,15 @@ function renderPairs(){
   const full=pairSeriesG(ST.A,ST.B);
   const ps=sliceMonths(full,ST.m);
   const s=stat(ps.val);
-  const _mk=ST.A+'|'+ST.B+'|'+ST.m; if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
+  const _mk=ST.A+'|'+ST.B+'|'+JSON.stringify(ST.m); if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
+  const early=winEndsEarly(ST.m);
   const bkEmpty=basketEmptyFor(ST.A,ST.B)||basketEmptyFor(ST.B,ST.A);
   const sameSec=bkEmpty||legSecOf(ST.A,isAgg(ST.B)?null:ST.B)===legSecOf(ST.B,isAgg(ST.A)?null:ST.A);
   document.getElementById('c-title').innerHTML=`${legLabel(ST.A)} <span>÷</span> ${legLabel(ST.B)} <span>— premium / discount${sameSec?'':' · cross-sector'}</span>`;
   const cards=[
-    {k:'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
+    {k:early?'At window end':'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
     {k:'Average · window',v:s?sgn(s.mean):'—'},
-    {k:'Current vs avg',v:s?sgn(s.cur-s.mean):'—',cls:s?((s.cur-s.mean)>=0?'pos':'neg'):''},
+    {k:early?'End vs avg':'Current vs avg',v:s?sgn(s.cur-s.mean):'—',cls:s?((s.cur-s.mean)>=0?'pos':'neg'):''},
     {k:'Percentile',v:s?`${s.pile.toFixed(0)}<small>th</small>`:'—'},
     {k:'Z-score',v:s?(s.z>=0?'+':'−')+Math.abs(s.z).toFixed(2):'—',cls:s?(s.z>=0?'pos':'neg'):''},
     {k:'Range',v:s?`<small>${sgn(s.min,0)} · ${sgn(s.max,0)}</small>`:'—'},
@@ -821,7 +865,9 @@ function renderPairs(){
     document.getElementById('g-cur').style.background=(s.cur>=s.mean)?'var(--rich)':'var(--cheap)';
     document.getElementById('g-min').textContent=sgn(s.min,0);
     document.getElementById('g-max').textContent=sgn(s.max,0);
-    document.getElementById('p-note').innerHTML=`${legLabel(ST.A)} currently trades at <b>${sgn(s.cur)}</b> versus ${legLabel(ST.B)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} its ${ST.m?ST.m/12+'-yr':'full-history'} average of <b>${sgn(s.mean)}</b> — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
+    const lead=early?`At the end of the window (${fmtMonD(D[ps.idx[ps.idx.length-1]])}), ${legLabel(ST.A)} traded at`:`${legLabel(ST.A)} currently trades at`;
+    const avgTxt=isCW(ST.m)?`its average of <b>${sgn(s.mean)}</b> over ${winText(ST.m)}`:`its ${winText(ST.m)} average of <b>${sgn(s.mean)}</b>`;
+    document.getElementById('p-note').innerHTML=`${lead} <b>${sgn(s.cur)}</b> versus ${legLabel(ST.B)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} ${avgTxt} — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
     if(isAgg(ST.A)||isAgg(ST.B)){
       const both=isAgg(ST.A)&&isAgg(ST.B),notes=[];
       const legs=both&&ST.A.slice(5)!==CUSTOM&&ST.B.slice(5)!==CUSTOM?[[ST.B,ST.A]]:[[ST.A,ST.B],[ST.B,ST.A]];
@@ -1169,10 +1215,11 @@ const SWMOVE=(function(){let mx=-1;
   return mx>=0?D[mx]:null;})();
 const swOrd=(v)=>{const k=Math.round(v),m=k%100,sfx=['th','st','nd','rd'];return k+'<small>'+(sfx[(m-20)%10]||sfx[m]||sfx[0])+'</small>';};
 function renderSW(){
-  const m=ST.swM||0,last=D[N-1];let start=0;
-  if(m){const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);const cs=cut.toISOString().slice(0,10);start=D.findIndex(d=>d>=cs);if(start<0)start=0;}
+  const m=ST.swM||0,last=D[N-1];let start=0,end=N-1;
+  if(isCW(m)){start=D.findIndex(d=>d>=m.from);if(start<0)start=0;while(end>start&&D[end]>m.to)end--;}
+  else if(m){const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);const cs=cut.toISOString().slice(0,10);start=D.findIndex(d=>d>=cs);if(start<0)start=0;}
   const A=ST.swA,B=ST.swB,sA=swSeries(A),sB=swSeries(B);
-  const idxs=[];for(let i=start;i<N;i++)idxs.push(i);const n=idxs.length;
+  const idxs=[];for(let i=start;i<=end;i++)idxs.push(i);const n=idxs.length;
   let lo=Infinity,hi=-Infinity;const con=v=>{if(v!=null){if(v<lo)lo=v;if(v>hi)hi=v;}};
   idxs.forEach(i=>{con(sA[i]);con(sB[i]);SW.names.forEach(t=>con(SW.pe[t][i]));});
   if(!(hi>lo)){lo=0;hi=1;}const pad=(hi-lo)*0.06;lo-=pad;hi+=pad;if(lo<0)lo=0;
@@ -1220,7 +1267,7 @@ function renderSW(){
 (function initSW(){const o=swOpts();fillSelV(document.getElementById('sw-a'),o,ST.swA);fillSelV(document.getElementById('sw-b'),o,ST.swB);
   document.getElementById('sw-a').onchange=e=>{ST.swA=e.target.value;renderSW();};
   document.getElementById('sw-b').onchange=e=>{ST.swB=e.target.value;renderSW();};
-  document.querySelectorAll('#sw-range button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#sw-range button').forEach(x=>x.removeAttribute('aria-selected'));b.setAttribute('aria-selected','true');ST.swM=+b.dataset.m;renderSW();});
+  wireRange('sw-range',()=>ST.swM,v=>{ST.swM=v;},renderSW);
 })();
 
 function switchTab(t){
@@ -1283,7 +1330,7 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!bkPop.hidden)close
 pA.onchange=()=>{ST.A=pA.value;renderPairs();};
 pB.onchange=()=>{ST.B=pB.value;renderPairs();};
 document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,ST.bSec]=[ST.bSec,ST.aSec];initPairControls();renderPairs();};
-document.getElementById('p-range').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.m=+b.dataset.m;document.querySelectorAll('#p-range button').forEach(x=>x.setAttribute('aria-selected',x===b));renderPairs();});
+wireRange('p-range',()=>ST.m,v=>{ST.m=v;},renderPairs);
 document.getElementById('f-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.fMode=b.dataset.mode;document.querySelectorAll('#f-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderFlags();});
 
 const sSecSel=document.getElementById('s-sector');fillSel(sSecSel,['All coverage',...sectorList()],ST.sSec);sSecSel.onchange=()=>{ST.sSec=sSecSel.value;renderScreen();};
@@ -1427,8 +1474,8 @@ function rrBullet(r,dom){
 const RRCOLS=[['t','Company'],['cur','Curr P/E'],['hi','High P/E'],['uHi','% to high'],
   ['avg','Avg P/E'],['uAvg','% to avg'],['lo','Low P/E'],['uLo','% to low'],['skew','Skew (pp)'],['n','n']];
 function renderRerate(){
-  const months=ST.rrM,wl=(months/12)+'Y',basis=ST.rrBasis;
-  document.querySelectorAll('#rr-range button').forEach(b=>b.setAttribute('aria-selected',+b.dataset.m===months));
+  const months=ST.rrM,wl=isCW(months)?winText(months):(months/12)+'Y',basis=ST.rrBasis;
+  syncRange('rr-range',months);
   document.querySelectorAll('#rr-basis button').forEach(b=>b.setAttribute('aria-selected',b.dataset.b===basis));
   const k=ST.rrSort.k,dir=ST.rrSort.dir;
   document.querySelector('#rr-tbl thead').innerHTML='<tr>'
@@ -1473,7 +1520,7 @@ function renderRerate(){
   document.querySelectorAll('#rr-tbl td[data-tk]').forEach(td=>td.onclick=()=>loadPairFromName(td.dataset.tk));
 }
 (function(){const rr=document.getElementById('rr-range');
-  if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrM=+b.dataset.m;renderRerate();});
+  if(rr)wireRange('rr-range',()=>ST.rrM,v=>{ST.rrM=v;},renderRerate);
   const rb=document.getElementById('rr-basis');
   if(rb)rb.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.rrBasis=b.dataset.b;renderRerate();});})();
 // ===== RANGE TAB (how wide / how jumpy each name's forward P/E has been) =====
@@ -1777,7 +1824,7 @@ function gcardHTML(c,wl){const cls=c.s.cur>=0?'pos':'neg',ws=sliceMonths(c.full,
   const foot=c.own&&c.avgPE!=null?('avg '+px(c.avgPE)+' · '+c.s.pile.toFixed(0)+'th pctile'):(c.s.pile.toFixed(0)+'th pctile'+(c.hero?' · group vs group':''));
   return '<div class="gcard'+(c.hero?' ghero':'')+'" '+(c.hero?'data-hero="1"':'data-i="'+c.i+'"')+'><div class="gcard-top"><span class="gcard-ttl" title="'+esc(c.tip||c.ttl)+'">'+c.ttl+'</span><span class="gcard-cur '+cls+'">'+sgn(c.s.cur)+'</span></div>'+sparkSVG(ws)+'<div class="gcard-foot"><span>'+foot+'</span><span>'+wl+' · n='+c.s.n+'</span></div></div>';}
 function renderGrid(){
-  const sec=ST.gridSec,modeRaw=ST.gridMode,wl=ST.gridM?(ST.gridM/12+'y'):'max';
+  const sec=ST.gridSec,modeRaw=ST.gridMode,wl=winShort(ST.gridM);
   const cmp=(ST.gridCmp&&ST.gridCmp!==sec)?ST.gridCmp:'';
   // curated-pairs and own-history are both intra-name modes; neither applies while comparing
   // across sub-sectors, so disable them whenever a "Compare to" sub-sector is set
@@ -1823,7 +1870,7 @@ function renderGrid(){
   const sw=document.getElementById('grid-swap');
   if(sw)sw.onclick=()=>{if(ST.gridCmp&&ST.gridCmp!==ST.gridSec){const a=ST.gridSec;ST.gridSec=ST.gridCmp;ST.gridCmp=a;if(sel)sel.value=ST.gridSec;if(cmp)cmp.value=ST.gridCmp;renderGrid();}};
   const mm=document.getElementById('grid-mode');if(mm)mm.querySelectorAll('button').forEach(b=>b.onclick=()=>{if(b.disabled)return;ST.gridMode=b.dataset.mode;mm.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderGrid();});
-  const rr=document.getElementById('grid-range');if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.gridM=+b.dataset.m;rr.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderGrid();});
+  wireRange('grid-range',()=>ST.gridM,v=>{ST.gridM=v;},renderGrid);
 })();
 
 // ===== NAME P/E TAB (single-name forward P/E vs history) =====
@@ -1838,10 +1885,11 @@ function renderNamePE(){
   document.getElementById('np-title').innerHTML=t+' <span>\u2014 forward P/E vs history</span>';
   if(!full.val.length){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
   const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
+  if(L<2){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">Fewer than two '+t+' observations in this window.</div>';document.getElementById('np-note').textContent='';return;}
   const s=stat(val);
   const mean=s.mean,sd=s.sd,up=mean+sd,dn=mean-sd,fx=v=>v.toFixed(1)+'x';
   const cards=[
-    {k:'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
+    {k:winEndsEarly(ST.npM)?'P/E at window end':'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
     {k:'Average \u00b7 window',v:fx(mean)},
     {k:'+1\u03c3',v:fx(up)},
     {k:'\u22121\u03c3',v:fx(dn)},
@@ -1884,9 +1932,11 @@ function renderNamePE(){
   g+='<circle id="np-dot" cx="0" cy="0" r="3.4" fill="var(--series)" stroke="#fff" stroke-width="1" vector-effect="non-scaling-stroke" style="display:none"/>';
   g+='<rect id="np-ov" x="'+x0+'" y="'+mt+'" width="'+pw+'" height="'+ph+'" fill="transparent" style="cursor:crosshair"/>';
   document.getElementById('np-chart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block;width:100%;height:100%">'+g+'</svg>';
-  const first=fmtMon(D[idx[0]]);
+  const first=fmtMon(D[idx[0]]),cw=isCW(ST.npM),early=winEndsEarly(ST.npM);
   const windowTxt=ST.npM?('trailing '+(ST.npM/12)+'-year'):'full-history';
-  document.getElementById('np-note').innerHTML=t+' trades at <b>'+fx(s.cur)+'</b>, '+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' its '+windowTxt+' average of <b>'+fx(mean)+'</b> (since '+first+') \u2014 the '+s.pile.toFixed(0)+'th percentile of '+(ST.npM?'this window':'its own range')+'. It has spanned '+fx(s.min)+' to '+fx(s.max)+(ST.npM?' over this window':'')+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.';
+  const lead=early?' traded at <b>'+fx(s.cur)+'</b> at the end of the window ('+fmtMonD(D[idx[L-1]])+'), ':' trades at <b>'+fx(s.cur)+'</b>, ';
+  const avgTxt=cw?'its average of <b>'+fx(mean)+'</b> over '+winText(ST.npM):'its '+windowTxt+' average of <b>'+fx(mean)+'</b> (since '+first+')';
+  document.getElementById('np-note').innerHTML=t+lead+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' '+avgTxt+' \u2014 the '+s.pile.toFixed(0)+'th percentile of '+(ST.npM?'this window':'its own range')+'. It '+(early?'spanned ':'has spanned ')+fx(s.min)+' to '+fx(s.max)+(ST.npM?' over this window':'')+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.';
   const svg=document.getElementById('np-chart').querySelector('svg');
   const ov=svg.querySelector('#np-ov'),cross=svg.querySelector('#np-cross'),dot=svg.querySelector('#np-dot'),read=document.getElementById('np-read');
   ov.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();let frac=((ev.clientX-r.left)/r.width*W-ml)/pw;frac=Math.max(0,Math.min(1,frac));const i=Math.round(frac*(L-1));const X=xi(i),Y=y(val[i]);cross.setAttribute('x1',X);cross.setAttribute('x2',X);cross.style.display='';dot.setAttribute('cx',X);dot.setAttribute('cy',Y);dot.style.display='';read.style.display='block';read.textContent=fmtMon(D[idx[i]])+' \u00b7 '+val[i].toFixed(1)+'x';});
@@ -1897,7 +1947,7 @@ function renderNamePE(){
   if(ssel){fillSel(ssel,['All coverage'].concat(sectorList()),ST.npSec);ssel.onchange=()=>{ST.npSec=ssel.value;npRefreshNames();renderNamePE();};}
   const nsel=document.getElementById('np-name');
   if(nsel){npRefreshNames();nsel.onchange=()=>{ST.npName=nsel.value;renderNamePE();};}
-  const rr=document.getElementById('np-range');if(rr)rr.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.npM=+b.dataset.m;rr.querySelectorAll('button').forEach(x=>x.setAttribute('aria-selected',x===b));renderNamePE();});
+  wireRange('np-range',()=>ST.npM,v=>{ST.npM=v;},renderNamePE);
 })();
 
 // ===== BACKTEST ENGINE (validated vs Python reference) =====
