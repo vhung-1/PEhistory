@@ -152,6 +152,20 @@ tbody td{padding:8px 11px;text-align:right;border-bottom:1px solid var(--line);w
 tbody td:first-child{text-align:left;font-weight:620;cursor:pointer;}
 tbody td:first-child:hover{color:var(--accent);text-decoration:underline;}
 tbody tr:hover{background:var(--panel2);}
+/* Name P/E: high / average / low over fixed trailing windows */
+.nphl{margin-top:14px;padding:12px 16px 8px;}
+.nphl .hlcap{font-size:10px;line-height:14px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.nphl .hlcap span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint);margin-left:6px;}
+table.nphlt{max-width:640px;font-variant-numeric:tabular-nums;}
+table.nphlt thead th{line-height:14px;position:static;background:transparent;color:var(--muted);font-size:10.5px;font-weight:650;letter-spacing:.5px;padding:6px 12px;border-bottom:1px solid var(--line2);border-radius:0;cursor:default;vertical-align:bottom;}
+table.nphlt thead th:hover{background:transparent;}
+table.nphlt thead th small{display:block;line-height:13px;text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint);font-size:10px;}
+table.nphlt tbody tr:hover{background:transparent;}
+table.nphlt tbody td{line-height:19px;padding:7px 12px;font-size:15px;font-weight:600;color:var(--ink);}
+table.nphlt tbody td:first-child{font-size:12px;font-weight:600;color:var(--ink2);cursor:default;}
+table.nphlt tbody td:first-child:hover{color:var(--ink2);text-decoration:none;}
+table.nphlt tbody td small{display:block;line-height:13px;font-size:10px;font-weight:500;color:var(--muted);margin-top:1px;}
+table.nphlt tbody tr:last-child td{border-bottom:0;}
 tbody tr.secrow td{background:#EEF3F5;font-weight:650;color:var(--ink);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--line2);padding:9px 11px;}
 .cell{border-radius:5px;padding:2px 7px;font-family:var(--mono);font-variant-numeric:tabular-nums;display:inline-block;min-width:46px;}
 tbody tr.rr-up>td{background:rgba(46,125,82,.075);}
@@ -411,6 +425,7 @@ footer b{color:var(--muted);}
         <button data-m="12">1Y</button><button data-m="36">3Y</button><button data-m="60">5Y</button><button data-m="0" aria-selected="true">Max</button></div></div>
       <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">Forward P/E with full-history average and &plusmn;1&sigma;</div>
     </div>
+    <div class="panel nphl" id="np-hl"></div>
     <div class="stats" id="np-stats"></div>
     <div class="panel chartcard">
       <div class="chart-top">
@@ -1878,10 +1893,28 @@ function peSeries(t){const a=PE[t];const idx=[],val=[];if(!a)return{idx,val};for
 function fmtMon(d){const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[+d.slice(5,7)-1]+' '+d.slice(0,4);}
 function npNiceNum(x,round){const e=Math.floor(Math.log10(x));const f=x/Math.pow(10,e);let nf;if(round){nf=f<1.5?1:f<3?2:f<7?5:10;}else{nf=f<=1?1:f<=2?2:f<=5?5:10;}return nf*Math.pow(10,e);}
 function npTicks(lo,hi,n){if(!(hi>lo))return[lo];const range=npNiceNum(hi-lo,false);const step=npNiceNum(range/Math.max(1,n-1),true);const gmin=Math.ceil(lo/step)*step,gmax=Math.floor(hi/step)*step,ts=[];for(let v=gmin;v<=gmax+1e-9;v+=step)ts.push(+v.toFixed(6));return ts.length?ts:[lo];}
+function npHiLo(t,full){
+  const el=document.getElementById('np-hl');if(!el)return;
+  if(!full.val.length){el.innerHTML='';return;}
+  const last=D[full.idx[full.idx.length-1]],fx=v=>v.toFixed(1)+'x';
+  const cols=[12,36,60].map(m=>{const ps=sliceMonths(full,m),v=ps.val;let hi=0,lo=0,sum=0;
+    for(let k=0;k<v.length;k++){sum+=v[k];if(v[k]>=v[hi])hi=k;if(v[k]<=v[lo])lo=k;}
+    const cut=new Date(last+'T00:00:00');cut.setMonth(cut.getMonth()-m);
+    const short=new Date(D[ps.idx[0]]+'T00:00:00')-cut>7*864e5;
+    return{m,hi:v[hi],hiD:D[ps.idx[hi]],lo:v[lo],loD:D[ps.idx[lo]],avg:sum/v.length,short,from:D[ps.idx[0]]};});
+  const head='<tr><th></th>'+cols.map(c=>'<th>'+(c.m/12)+'Y'+(c.short?'<small>since '+fmtMon(c.from)+'</small>':'')+'</th>').join('')+'</tr>';
+  const row=(k,f)=>'<tr><td>'+k+'</td>'+cols.map(f).join('')+'</tr>';
+  el.innerHTML='<div class="hlcap">'+t+' forward P/E<span>trailing to '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
+    +row('High P/E',c=>'<td>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
+    +row('Average P/E',c=>'<td>'+fx(c.avg)+'</td>')
+    +row('Low P/E',c=>'<td>'+fx(c.lo)+'<small>'+fmtMonD(c.loD)+'</small></td>')
+    +'</tbody></table></div>';
+}
 function npRefreshNames(){const nn=namesIn(ST.npSec);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSel(document.getElementById('np-name'),nn,ST.npName);}
 function renderNamePE(){
   const t=ST.npName;
   const full=peSeries(t);
+  npHiLo(t,full);
   document.getElementById('np-title').innerHTML=t+' <span>\u2014 forward P/E vs history</span>';
   if(!full.val.length){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
   const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
