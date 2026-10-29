@@ -689,9 +689,17 @@ const DPX = DPXMETA.px;
 // discloses the gap rather than letting the reader assume both panels end together.
 const PXASOF = DPXMETA.asof;
 const SW = __SWDATA__;
+const XS = __XPE__;   // investor-supplied reference series {series:{key:{base,label,kind,desc,note,dates,pe}}}
 const D = DATA.dates, PE = DATA.pe, SEC = DATA.sectors, SECOF = DATA.sector_of;
 const N = D.length;
 const ALL_TICKERS = Object.keys(PE).sort();
+// Reference series (e.g. a calendarized 2-yr-forward P/E the investor pasted in). Stored by date and
+// aligned to D here, so a refresh never has to touch them; a panel date the series lacks stays null.
+// Name P/E only: they never enter PE, so no aggregate, screen, pair or backtest can see them.
+const XPE={};
+for(const [k,s] of Object.entries(XS.series||{})){const m=new Map(s.dates.map((d,i)=>[d,s.pe[i]]));XPE[k]=D.map(d=>m.has(d)?m.get(d):null);}
+const xsFor=t=>Object.keys(XPE).filter(k=>XS.series[k].base===t);
+const npLab=t=>XPE[t]?XS.series[t].label:t;
 const fmtMonD = (s)=>{const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'});};
 const fmtFull = (s)=>{const d=new Date(s+'T00:00:00');return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});};
 const sgn = (x,dp=1)=>(x>=0?'+':'−')+Math.abs(x*100).toFixed(dp)+'%';
@@ -1889,7 +1897,7 @@ function renderGrid(){
 })();
 
 // ===== NAME P/E TAB (single-name forward P/E vs history) =====
-function peSeries(t){const a=PE[t];const idx=[],val=[];if(!a)return{idx,val};for(let i=0;i<N;i++){if(a[i]!=null){idx.push(i);val.push(a[i]);}}return{idx,val};}
+function peSeries(t){const a=PE[t]||XPE[t];const idx=[],val=[];if(!a)return{idx,val};for(let i=0;i<N;i++){if(a[i]!=null){idx.push(i);val.push(a[i]);}}return{idx,val};}
 function fmtMon(d){const m=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];return m[+d.slice(5,7)-1]+' '+d.slice(0,4);}
 function npNiceNum(x,round){const e=Math.floor(Math.log10(x));const f=x/Math.pow(10,e);let nf;if(round){nf=f<1.5?1:f<3?2:f<7?5:10;}else{nf=f<=1?1:f<=2?2:f<=5?5:10;}return nf*Math.pow(10,e);}
 function npTicks(lo,hi,n){if(!(hi>lo))return[lo];const range=npNiceNum(hi-lo,false);const step=npNiceNum(range/Math.max(1,n-1),true);const gmin=Math.ceil(lo/step)*step,gmax=Math.floor(hi/step)*step,ts=[];for(let v=gmin;v<=gmax+1e-9;v+=step)ts.push(+v.toFixed(6));return ts.length?ts:[lo];}
@@ -1904,25 +1912,27 @@ function npHiLo(t,full){
     return{m,hi:v[hi],hiD:D[ps.idx[hi]],lo:v[lo],loD:D[ps.idx[lo]],avg:sum/v.length,short,from:D[ps.idx[0]]};});
   const head='<tr><th></th>'+cols.map(c=>'<th>'+(c.m/12)+'Y'+(c.short?'<small>since '+fmtMon(c.from)+'</small>':'')+'</th>').join('')+'</tr>';
   const row=(k,f)=>'<tr><td>'+k+'</td>'+cols.map(f).join('')+'</tr>';
-  el.innerHTML='<div class="hlcap">'+t+' forward P/E<span>trailing to '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
+  el.innerHTML='<div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>trailing to '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
     +row('High P/E',c=>'<td>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
     +row('Average P/E',c=>'<td>'+fx(c.avg)+'</td>')
     +row('Low P/E',c=>'<td>'+fx(c.lo)+'<small>'+fmtMonD(c.loD)+'</small></td>')
     +'</tbody></table></div>';
 }
-function npRefreshNames(){const nn=namesIn(ST.npSec);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSel(document.getElementById('np-name'),nn,ST.npName);}
+function npRefreshNames(){const nn=namesIn(ST.npSec).flatMap(t=>[t,...xsFor(t)]);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSelV(document.getElementById('np-name'),nn.map(t=>({v:t,t:npLab(t)})),ST.npName);}
 function renderNamePE(){
   const t=ST.npName;
   const full=peSeries(t);
   npHiLo(t,full);
-  document.getElementById('np-title').innerHTML=t+' <span>\u2014 forward P/E vs history</span>';
+  document.getElementById('np-title').innerHTML=npLab(t)+' <span>\u2014 '+(XPE[t]?XS.series[t].kind:'forward P/E')+' vs history</span>';
   if(!full.val.length){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">No forward P/E history for '+t+'.</div>';document.getElementById('np-note').textContent='';return;}
   const ps=sliceMonths(full,ST.npM),idx=ps.idx,val=ps.val,L=val.length;
   if(L<2){document.getElementById('np-stats').innerHTML='';document.getElementById('np-chart').innerHTML='<div class="gnone" style="padding:40px 6px">Fewer than two '+t+' observations in this window.</div>';document.getElementById('np-note').textContent='';return;}
   const s=stat(val);
   const mean=s.mean,sd=s.sd,up=mean+sd,dn=mean-sd,fx=v=>v.toFixed(1)+'x';
+  // a reference series can end before the panel does (it is not refreshed with the workbook)
+  const lastD=D[full.idx[full.idx.length-1]],stale=lastD<D[N-1];
   const cards=[
-    {k:winEndsEarly(ST.npM)?'P/E at window end':'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
+    {k:winEndsEarly(ST.npM)?'P/E at window end':stale?'P/E at '+fmtMonD(lastD):'Current P/E',v:fx(s.cur),cls:s.cur>=mean?'pos':'neg'},
     {k:'Average \u00b7 window',v:fx(mean)},
     {k:'+1\u03c3',v:fx(up)},
     {k:'\u22121\u03c3',v:fx(dn)},
@@ -1967,9 +1977,10 @@ function renderNamePE(){
   document.getElementById('np-chart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none" style="display:block;width:100%;height:100%">'+g+'</svg>';
   const first=fmtMon(D[idx[0]]),cw=isCW(ST.npM),early=winEndsEarly(ST.npM);
   const windowTxt=ST.npM?('trailing '+(ST.npM/12)+'-year'):'full-history';
-  const lead=early?' traded at <b>'+fx(s.cur)+'</b> at the end of the window ('+fmtMonD(D[idx[L-1]])+'), ':' trades at <b>'+fx(s.cur)+'</b>, ';
+  const lead=early?' traded at <b>'+fx(s.cur)+'</b> at the end of the window ('+fmtMonD(D[idx[L-1]])+'), ':stale?' last printed <b>'+fx(s.cur)+'</b> on '+fmtMonD(lastD)+', ':' trades at <b>'+fx(s.cur)+'</b>, ';
   const avgTxt=cw?'its average of <b>'+fx(mean)+'</b> over '+winText(ST.npM):'its '+windowTxt+' average of <b>'+fx(mean)+'</b> (since '+first+')';
-  document.getElementById('np-note').innerHTML=t+lead+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' '+avgTxt+' \u2014 the '+s.pile.toFixed(0)+'th percentile of '+(ST.npM?'this window':'its own range')+'. It '+(early?'spanned ':'has spanned ')+fx(s.min)+' to '+fx(s.max)+(ST.npM?' over this window':'')+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.';
+  const xs=XS.series[t],xsTxt=XPE[t]?'<br>Reference series: '+xs.desc+', '+fmtMonD(xs.dates[0])+' to '+fmtMonD(xs.dates[xs.dates.length-1])+'. It is not refreshed by the daily workbook and feeds no screen, aggregate, pair or backtest. '+xs.note:'';
+  document.getElementById('np-note').innerHTML=npLab(t)+lead+Math.abs(s.cur-mean).toFixed(1)+'x '+(s.cur>=mean?'above':'below')+' '+avgTxt+' \u2014 the '+s.pile.toFixed(0)+'th percentile of '+(ST.npM?'this window':'its own range')+'. It '+(early?'spanned ':'has spanned ')+fx(s.min)+' to '+fx(s.max)+(ST.npM?' over this window':'')+', with a 1\u03c3 band of '+fx(dn)+' to '+fx(up)+'.'+xsTxt;
   const svg=document.getElementById('np-chart').querySelector('svg');
   const ov=svg.querySelector('#np-ov'),cross=svg.querySelector('#np-cross'),dot=svg.querySelector('#np-dot'),read=document.getElementById('np-read');
   ov.addEventListener('mousemove',ev=>{const r=svg.getBoundingClientRect();let frac=((ev.clientX-r.left)/r.width*W-ml)/pw;frac=Math.max(0,Math.min(1,frac));const i=Math.round(frac*(L-1));const X=xi(i),Y=y(val[i]);cross.setAttribute('x1',X);cross.setAttribute('x2',X);cross.style.display='';dot.setAttribute('cx',X);dot.setAttribute('cy',Y);dot.style.display='';read.style.display='block';read.textContent=fmtMon(D[idx[i]])+' \u00b7 '+val[i].toFixed(1)+'x';});
