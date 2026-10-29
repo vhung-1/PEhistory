@@ -42,6 +42,12 @@ header{position:sticky;top:0;z-index:30;background:rgba(246,248,249,.86);backdro
 .pside{flex:1;min-width:250px;display:flex;flex-direction:column;gap:7px;}
 .pside .sh{font-size:10px;font-weight:650;letter-spacing:.7px;text-transform:uppercase;color:var(--muted);}
 .pside .sh b{color:var(--series);} .pside.b .sh b{color:var(--avg);}
+/* P/E basis switch (FY+1 or a reference series) for a single-ticker leg; out of flow so it never moves the panel */
+.pside .sh{position:relative;}
+.pside .basis{position:absolute;right:0;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-weight:500;}
+.pside .basis[hidden]{display:none;}
+.pside .basis .ranges{padding:1px;border-radius:6px;}
+.pside .basis .ranges button{padding:2px 8px;font-size:10px;border-radius:5px;}
 .pside .row{display:flex;gap:8px;}
 .pside .row select:first-child{flex:0 0 42%;}
 .swapwrap{display:flex;align-items:center;padding-bottom:2px;}
@@ -369,13 +375,13 @@ footer b{color:var(--muted);}
   <section class="view active" id="view-pairs" role="tabpanel">
     <div class="panel pcontrols">
       <div class="pside a">
-        <div class="sh">Name <b>A</b> · numerator</div>
+        <div class="sh">Name <b>A</b> · numerator<span class="basis" id="p-a-basis" hidden></span></div>
         <div class="row"><select id="p-a-sector" aria-label="Sector for A"></select><select id="p-a" aria-label="Ticker A"></select></div>
         <div class="bkwrap" data-leg="A" hidden><button type="button" class="bkbtn" aria-haspopup="dialog" aria-expanded="false"><span class="bkn">Pick basket names</span><span class="bkct"></span></button></div>
       </div>
       <div class="swapwrap"><button class="swap" id="p-swap" title="Swap A and B">⇄</button></div>
       <div class="pside b">
-        <div class="sh">Name <b>B</b> · denominator</div>
+        <div class="sh">Name <b>B</b> · denominator<span class="basis" id="p-b-basis" hidden></span></div>
         <div class="row"><select id="p-b-sector" aria-label="Sector for B"></select><select id="p-b" aria-label="Ticker B"></select></div>
         <div class="bkwrap" data-leg="B" hidden><button type="button" class="bkbtn" aria-haspopup="dialog" aria-expanded="false"><span class="bkn">Pick basket names</span><span class="bkct"></span></button><div class="bkpop" id="bk-pop" role="dialog" aria-label="Custom basket" hidden><div class="bkhead"><input type="search" id="bk-q" placeholder="Filter names or sub-sectors" aria-label="Filter names" autocomplete="off"><button type="button" class="bklink" id="bk-clear">Clear all</button></div><div class="bklist" id="bk-list"></div><div class="bkfoot"><span id="bk-sum"></span><button type="button" class="bkdone" id="bk-done">Done</button></div></div></div>
       </div>
@@ -695,7 +701,8 @@ const N = D.length;
 const ALL_TICKERS = Object.keys(PE).sort();
 // Reference series (e.g. a calendarized 2-yr-forward P/E the investor pasted in). Stored by date and
 // aligned to D here, so a refresh never has to touch them; a panel date the series lacks stays null.
-// Name P/E only: they never enter PE, so no aggregate, screen, pair or backtest can see them.
+// Shown in Name P/E and as a Pairs basis option for their base ticker; they never enter PE, so no
+// aggregate, screen, Grid, Consistency record or backtest can see them.
 const XPE={};
 for(const [k,s] of Object.entries(XS.series||{})){const m=new Map(s.dates.map((d,i)=>[d,s.pe[i]]));XPE[k]=D.map(d=>m.has(d)?m.get(d):null);}
 const xsFor=t=>Object.keys(XPE).filter(k=>XS.series[k].base===t);
@@ -752,10 +759,12 @@ function pairSeries(a,b){const A=PE[a],B=PE[b],idx=[],val=[];for(let i=0;i<N;i++
 function isAgg(leg){return !!leg&&leg[0]==='~';}
 function legSeries(leg,excl){
   if(isAgg(leg)){const med=leg.slice(1,4)==='med';const sec=leg.slice(5);const names=namesIn(sec).filter(t=>PE[t]&&t!==excl);const out=new Array(N).fill(null);for(let i=0;i<N;i++){const vv=[];for(let j=0;j<names.length;j++){const v=PE[names[j]][i];if(v!=null)vv.push(v);}if(!vv.length)continue;if(med){vv.sort((x,y)=>x-y);const m=vv.length;out[i]=m%2?vv[(m-1)/2]:(vv[m/2-1]+vv[m/2])/2;}else{let s=0;for(let k=0;k<vv.length;k++)s+=vv[k];out[i]=s/vv.length;}}return out;}
-  return PE[leg];
+  return PE[leg]||XPE[leg];
 }
-function pairSeriesG(a,b){const A=legSeries(a,isAgg(b)?null:b),B=legSeries(b,isAgg(a)?null:a),idx=[],val=[];if(!A||!B)return{idx,val};for(let i=0;i<N;i++){if(A[i]!=null&&B[i]!=null){idx.push(i);val.push(A[i]/B[i]-1);}}return{idx,val};}
-function legLabel(leg){if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'?' median':' avg');return leg;}
+// ka/kb are the series keys (a ticker, or a reference series of it); a and b stay the tickers, so an
+// aggregate on the other leg still leaves the real name out
+function pairSeriesG(a,b,ka=a,kb=b){const A=legSeries(ka,isAgg(b)?null:b),B=legSeries(kb,isAgg(a)?null:a),idx=[],val=[];if(!A||!B)return{idx,val};for(let i=0;i<N;i++){if(A[i]!=null&&B[i]!=null){idx.push(i);val.push(A[i]/B[i]-1);}}return{idx,val};}
+function legLabel(leg){if(XPE[leg])return XS.series[leg].label;if(isAgg(leg))return leg.slice(5)+(leg.slice(1,4)==='med'?' median':' avg');return leg;}
 // a custom basket counts as one sub-sector only when every member it uses (other leg left out) is in it
 function legSecOf(leg,excl){if(isAgg(leg)){const sec=leg.slice(5);if(sec!==CUSTOM)return sec;const ss=new Set(namesIn(CUSTOM).filter(t=>PE[t]&&t!==excl).map(t=>SECOF[t]));return ss.size===1?[...ss][0]:CUSTOM;}return SECOF[leg];}
 // ---------- history windows ----------
@@ -845,6 +854,7 @@ function basketEmptyFor(leg,other){return isAgg(leg)&&leg.slice(5)===CUSTOM&&!na
 const aSecSel=document.getElementById('p-a-sector'),pA=document.getElementById('p-a'),
       bSecSel=document.getElementById('p-b-sector'),pB=document.getElementById('p-b');
 function initPairControls(){
+  ST.aBasis=ST.bBasis='';
   fillSel(aSecSel,['All coverage',...sectorList(),CUSTOM],ST.aSec);
   fillSel(bSecSel,['All coverage',...sectorList(),CUSTOM],ST.bSec);
   refreshPairNames();
@@ -861,21 +871,35 @@ function refreshPairNames(){
 function legDefault(sec){return sec===CUSTOM?'~avg~'+CUSTOM:namesIn(sec)[0];}
 
 // ---------- PAIRS ----------
+// P/E basis per leg: '' = FY+1 (the panel), or the key of a reference series whose base is that leg
+const legKey=(leg,b)=>b&&XS.series[b]&&XS.series[b].base===leg?b:leg;
+function syncBasisUI(){
+  [['A','aBasis','p-a-basis'],['B','bBasis','p-b-basis']].forEach(([L,k,id])=>{
+    const leg=ST[L],opts=isAgg(leg)?[]:xsFor(leg),el=document.getElementById(id);
+    if(ST[k]&&!opts.includes(ST[k]))ST[k]='';
+    if(!el)return;el.hidden=!opts.length;if(!opts.length){el.innerHTML='';return;}
+    el.innerHTML='P/E basis<span class="ranges">'+[['','FY+1'],...opts.map(o=>[o,XS.series[o].short])].map(([v,t])=>'<button type="button" data-b="'+v+'" aria-selected="'+((ST[k]||'')===v)+'">'+t+'</button>').join('')+'</span>';
+    el.querySelectorAll('button').forEach(b=>b.onclick=()=>{ST[k]=b.dataset.b;renderPairs();});});
+}
 const cv=document.getElementById('chart'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
 let CHART={};
 function renderPairs(){
-  const full=pairSeriesG(ST.A,ST.B);
+  syncBasisUI();
+  const ka=legKey(ST.A,ST.aBasis),kb=legKey(ST.B,ST.bBasis),xb=ka!==ST.A||kb!==ST.B;
+  const full=pairSeriesG(ST.A,ST.B,ka,kb);
   const ps=sliceMonths(full,ST.m);
   const s=stat(ps.val);
-  const _mk=ST.A+'|'+ST.B+'|'+JSON.stringify(ST.m); if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
+  const _mk=ST.A+'|'+ST.B+'|'+ka+'|'+kb+'|'+JSON.stringify(ST.m); if(_mk!==ST._measKey){ST.measA=null;ST.measB=null;ST._measKey=_mk;}
   const early=winEndsEarly(ST.m);
+  // a reference series is not refreshed with the workbook, so the pair can end before the panel does
+  const lastD=ps.idx.length?D[ps.idx[ps.idx.length-1]]:null,stale=xb&&!early&&!!lastD&&lastD<D[N-1];
   const bkEmpty=basketEmptyFor(ST.A,ST.B)||basketEmptyFor(ST.B,ST.A);
   const sameSec=bkEmpty||legSecOf(ST.A,isAgg(ST.B)?null:ST.B)===legSecOf(ST.B,isAgg(ST.A)?null:ST.A);
-  document.getElementById('c-title').innerHTML=`${legLabel(ST.A)} <span>÷</span> ${legLabel(ST.B)} <span>— premium / discount${sameSec?'':' · cross-sector'}</span>`;
+  document.getElementById('c-title').innerHTML=`${legLabel(ka)} <span>÷</span> ${legLabel(kb)} <span>— premium / discount${sameSec?'':' · cross-sector'}</span>`;
   const cards=[
-    {k:early?'At window end':'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
+    {k:early?'At window end':stale?'At '+fmtMonD(lastD):'Current',v:s?sgn(s.cur):'—',cls:s&&s.cur>=0?'pos':'neg'},
     {k:'Average · window',v:s?sgn(s.mean):'—'},
-    {k:early?'End vs avg':'Current vs avg',v:s?sgn(s.cur-s.mean):'—',cls:s?((s.cur-s.mean)>=0?'pos':'neg'):''},
+    {k:early||stale?'End vs avg':'Current vs avg',v:s?sgn(s.cur-s.mean):'—',cls:s?((s.cur-s.mean)>=0?'pos':'neg'):''},
     {k:'Percentile',v:s?`${s.pile.toFixed(0)}<small>th</small>`:'—'},
     {k:'Z-score',v:s?(s.z>=0?'+':'−')+Math.abs(s.z).toFixed(2):'—',cls:s?(s.z>=0?'pos':'neg'):''},
     {k:'Range',v:s?`<small>${sgn(s.min,0)} · ${sgn(s.max,0)}</small>`:'—'},
@@ -888,9 +912,9 @@ function renderPairs(){
     document.getElementById('g-cur').style.background=(s.cur>=s.mean)?'var(--rich)':'var(--cheap)';
     document.getElementById('g-min').textContent=sgn(s.min,0);
     document.getElementById('g-max').textContent=sgn(s.max,0);
-    const lead=early?`At the end of the window (${fmtMonD(D[ps.idx[ps.idx.length-1]])}), ${legLabel(ST.A)} traded at`:`${legLabel(ST.A)} currently trades at`;
+    const lead=early?`At the end of the window (${fmtMonD(D[ps.idx[ps.idx.length-1]])}), ${legLabel(ka)} traded at`:stale?`On ${fmtMonD(lastD)}, the last date of the reference series, ${legLabel(ka)} traded at`:`${legLabel(ka)} currently trades at`;
     const avgTxt=isCW(ST.m)?`its average of <b>${sgn(s.mean)}</b> over ${winText(ST.m)}`:`its ${winText(ST.m)} average of <b>${sgn(s.mean)}</b>`;
-    document.getElementById('p-note').innerHTML=`${lead} <b>${sgn(s.cur)}</b> versus ${legLabel(ST.B)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} ${avgTxt} — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
+    document.getElementById('p-note').innerHTML=`${lead} <b>${sgn(s.cur)}</b> versus ${legLabel(kb)}, ${Math.abs((s.cur-s.mean)*100).toFixed(0)}pp ${s.cur>=s.mean?'above':'below'} ${avgTxt} — the ${s.pile.toFixed(0)}th percentile of the window (${s.n.toLocaleString()} obs).`;
     if(isAgg(ST.A)||isAgg(ST.B)){
       const both=isAgg(ST.A)&&isAgg(ST.B),notes=[];
       const legs=both&&ST.A.slice(5)!==CUSTOM&&ST.B.slice(5)!==CUSTOM?[[ST.B,ST.A]]:[[ST.A,ST.B],[ST.B,ST.A]];
@@ -898,6 +922,7 @@ function renderPairs(){
         if(asec===CUSTOM)notes.push(`Custom basket = ${leg.slice(1,4)==='med'?'median':'equal-weighted average'} of ${mem.length} name${mem.length===1?'':'s'}: ${mem.slice(0,12).join(', ')}${mem.length>12?` and ${mem.length-12} more`:''}${excl&&ST.basket.includes(excl)?` (${excl} is left out because it is the other leg)`:''}.`);
         else{const noteEx=(excl&&SECOF[excl]===asec)?(', excluding '+excl+' itself'):'';notes.push(`Sub-sector leg = equal-weighted ${both?'aggregates':'average'} across ${mem.length} ${asec} names with P/E${noteEx}.`);}});
       document.getElementById('p-note').innerHTML+=` <span style="color:var(--muted)">${notes.join(' ')}</span>`;}
+    [ka,kb].filter(k=>XPE[k]).forEach(k=>{const x=XS.series[k];document.getElementById('p-note').innerHTML+=`<br><span style="color:var(--muted)">${x.base} is on the reference series (${x.desc}; ${fmtMonD(x.dates[0])} to ${fmtMonD(x.dates[x.dates.length-1])}), so the pair covers only those dates. ${x.pairnote}</span>`;});
   } else { document.getElementById('p-note').innerHTML=bkEmpty?'The custom basket has no names to compare against yet. Tick names in the basket list (the other leg is always left out).':'No overlapping history for this pair in the selected window.'; }
   drawChart(ps,bkEmpty?'Pick names for the custom basket':'');
   renderMeasure();
@@ -1352,7 +1377,7 @@ document.addEventListener('pointerdown',e=>{if(!bkPop.hidden&&!bkPop.parentEleme
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!bkPop.hidden)closeBasket(true);});
 pA.onchange=()=>{ST.A=pA.value;renderPairs();};
 pB.onchange=()=>{ST.B=pB.value;renderPairs();};
-document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,ST.bSec]=[ST.bSec,ST.aSec];initPairControls();renderPairs();};
+document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,ST.bSec]=[ST.bSec,ST.aSec];const bs=[ST.bBasis,ST.aBasis];initPairControls();[ST.aBasis,ST.bBasis]=bs;renderPairs();};
 wireRange('p-range',()=>ST.m,v=>{ST.m=v;},renderPairs);
 document.getElementById('f-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.fMode=b.dataset.mode;document.querySelectorAll('#f-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderFlags();});
 
