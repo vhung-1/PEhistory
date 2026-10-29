@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Build (5-token substitution)
+      - name: Build (6-token substitution)
         run: python build.py
 
       - name: Gate (a) — JS syntax (node --check)
@@ -65,7 +65,7 @@ jobs:
           set -euo pipefail
           mkdir -p _site
           cp index.html Relative_PE_Dashboard.html _site/
-          cp data.json daily_px.json sw_data.json q_pairs.json btdata.json bt_results.json _site/
+          cp data.json daily_px.json sw_data.json xs_data.json q_pairs.json btdata.json bt_results.json _site/
           python mkapi.py _site   # discovery manifest -> _site/api.json
           node mkcharts.mjs _site/charts Relative_PE_Dashboard.html
           test "$(ls _site/charts/*.png | wc -l)" -eq 22   # 18 pairs + 4 single names

@@ -26,17 +26,18 @@ A **single, self-contained interactive HTML dashboard** for a long/short **diver
 
 | File | Role |
 |---|---|
-| `template.html` | **Source of truth.** The full dashboard with the embedded data replaced by 5 tokens: `__QDATA__`, `__BTDATA__`, `__DATA__`, `__DPX__`, `__SWDATA__`. All tab code (incl. the former `con.js`/`grid.js`/`namepe.js` modules, the Software tab, and the portable backtest core) is already merged in here. |
-| `build.py` | The 5-token build → `Relative_PE_Dashboard.html`. |
+| `template.html` | **Source of truth.** The full dashboard with the embedded data replaced by 6 tokens: `__QDATA__`, `__BTDATA__`, `__DATA__`, `__DPX__`, `__SWDATA__`, `__XPE__`. All tab code (incl. the former `con.js`/`grid.js`/`namepe.js` modules, the Software tab, and the portable backtest core) is already merged in here. |
+| `build.py` | The 6-token build → `Relative_PE_Dashboard.html`. |
 | `mkdata.py` | Builds `data.json` (the P/E panel) from the uploaded Bloomberg coverage workbook. |
 | `mksw.py` | Builds `sw_data.json` (the Software reference panel) from the Bloomberg software workbook. Run **after** `mkdata.py` (aligns to its dates). |
+| `mkxs.py` + `xs_*.txt` | Builds `xs_data.json` (investor-supplied **reference series** for the Name P/E tab) from the pasted source files, currently `xs_rjf_cy2.txt` (RJF calendarized 2-yr-forward P/E). Validates dates and values; no refresh step needed (§5). |
 | `q_pairs.py` | Builds `q_pairs.json` (Consistency tab records) from `data.json` + `prices_all.json`. |
 | `backtest.py` | The Python backtest engine (reference implementation). |
 | `bt_export.py` | Runs `backtest.py`'s setup and dumps `bt_results.json` (the numeric reference for the gate). |
 | `bt_verify.js` | **The validation gate.** Re-derives the backtest from the *built HTML* and asserts 39 numeric checks against `bt_results.json`. |
 | `build_dpx3.py` | Builds `daily_px.json` (the daily price panel) from S&P price pulls via the splice procedure (§7c). |
 | `prices.py` + `prices_all.json` | **Monthly** adjusted-close panel for the backtest/consistency (hard-coded values, *not* a live resolver). |
-| Data outputs: `data.json`, `q_pairs.json`, `btdata.json`, `prices_all.json`, `bt_results.json`, `daily_px.json`, `sw_data.json` | The embedded/reference data (see §5). |
+| Data outputs: `data.json`, `q_pairs.json`, `btdata.json`, `prices_all.json`, `bt_results.json`, `daily_px.json`, `sw_data.json`, `xs_data.json` | The embedded/reference data (see §5). |
 
 **Scratch / superseded — safe to ignore or delete:** `app*.js`, `nt*.js`, `nodetest.js`, `bt_inject.js`, `bt_render.js`, `bt_core.js` (standalone copy of the core now living in `template.html`), `cov.js`, `ingest.py`, `resolve_daily.py`, `recalc.py`, `trapcost_proto.py`, `quarterly_backtest.py`, `q_results.json`, `perpair.json`, `PX_auto.json`, `bt_ready.json`, `built_script.js`, `sw_block.js`, `build_dpx.py`, `build_dpx2.py`. (`con.js`, `grid.js`, `namepe.js` are also historical — their code is already in `template.html`.)
 
@@ -46,7 +47,7 @@ A first good task in Claude Code: move the scratch files into an `_archive/` fol
 
 ## 3. Build pipeline (token replacement)
 
-The build replaces the 5 tokens in `template.html` with their JSON payloads. **Order matters:** `__DATA__` is a substring of `__QDATA__` and `__BTDATA__`, so those must be replaced first. `__DPX__` and `__SWDATA__` are independent (neither contains, nor is contained by, `__DATA__`). Replace each exactly once and assert none remain.
+The build replaces the 6 tokens in `template.html` with their JSON payloads. **Order matters:** `__DATA__` is a substring of `__QDATA__` and `__BTDATA__`, so those must be replaced first. `__DPX__`, `__SWDATA__` and `__XPE__` are independent (none contains, or is contained by, `__DATA__`). Replace each exactly once and assert none remain.
 
 The relevant declarations in `template.html`:
 ```js
@@ -56,6 +57,7 @@ const QD   = __QDATA__;
 const DPXMETA = __DPX__;
 const DPX  = DPXMETA.px;   // daily price map keyed by ticker
 const SW   = __SWDATA__;   // software reference panel {asof, names, pe}
+const XS   = __XPE__;      // investor-supplied reference series {series:{key:{base,label,...,dates,pe}}}
 ```
 
 `build.py`:
@@ -64,7 +66,8 @@ import pathlib
 tpl = pathlib.Path("template.html").read_text(encoding="utf-8")
 out = tpl
 ORDER = [("__QDATA__","q_pairs.json"), ("__BTDATA__","btdata.json"),
-         ("__DATA__","data.json"), ("__DPX__","daily_px.json"), ("__SWDATA__","sw_data.json")]
+         ("__DATA__","data.json"), ("__DPX__","daily_px.json"), ("__SWDATA__","sw_data.json"),
+         ("__XPE__","xs_data.json")]
 for tok, f in ORDER:
     assert tpl.count(tok) == 1, f"{tok} count != 1"
     out = out.replace(tok, pathlib.Path(f).read_text(encoding="utf-8").strip(), 1)
@@ -115,14 +118,20 @@ If you edit the core's math, keep the `function bmean(` start marker and the `EN
 - `{ asof, names:["MSFT US",…], pe:{ "<TICKER>": [number|null, …] } }`, `pe` aligned to `DATA.dates`.
 - Daily 1-year-forward (FY+1) P/E for 8 software names (MSFT, ORCL, CRM, NOW, WDAY, ADBE, INTU, ADSK). **JKHY is deliberately NOT here** — the tab draws JKHY from `DATA.pe['JKHY US']` so it stays consistent with the rest of the dashboard. **These names are reference-only and are NOT in `DATA` / the 91-name universe**, so they never appear in Pairs/Screen/Matrix/Grid/Consistency/Backtest.
 
-**Tab → source:** Pairs/Name P/E/Flags/Summary/Screen/Matrix/Grid/Coverage derive from `DATA.pe`; the Pairs click-to-measure tool reads `DPX`; Consistency reads `QD`; Backtest reads `BT`; the **Software tab reads `SW` (+ `DATA.pe['JKHY US']`)**.
+**`xs_data.json` → `const XS`** — investor-supplied **reference series** for the Name P/E tab (added 2026-10-29).
+- `{ series:{ "<KEY>":{ base, label, kind, desc, note, added, dates:[ISO…], pe:[number…] } } }`. Built by `mkxs.py` from pasted two-column files (`dd/mm/yyyy  value`) kept in the repo.
+- **Stored by its own dates, not aligned to `DATA.dates`.** `template.html` aligns each series to `D` at load (`XPE[key]`), so **no refresh step touches it** and it can never sit a day off. A panel date the series lacks (US holidays) stays `null`; nothing is filled.
+- Currently one series: **`RJF US CY2`** — RJF calendarized 2-year-forward P/E, 2024-01-16 → 2026-10-28 (700 rows), pasted by the investor on 2026-10-29. Its `base` (`RJF US`) puts it in the Name P/E name list straight after RJF. It is **not refreshed by the workbook**; to extend it, append the new rows to `xs_rjf_cy2.txt` (or replace the file with a fresh paste, taking the new values as truth) and re-run `python mkxs.py`. When the series ends before the panel, the tab says "P/E at <date>" and "last printed" instead of "Current".
+- **Reference only, like `SW`:** it never enters `PE`, so no sub-sector aggregate, screen, Grid, pair, Consistency record or backtest can see it.
+
+**Tab → source:** Pairs/Name P/E/Flags/Summary/Screen/Matrix/Grid/Coverage derive from `DATA.pe` (Name P/E also lists the `XS` reference series); the Pairs click-to-measure tool reads `DPX`; Consistency reads `QD`; Backtest reads `BT`; the **Software tab reads `SW` (+ `DATA.pe['JKHY US']`)**.
 
 ---
 
 ## 6. The tabs (brief)
 
 - **Pairs** — relative forward P/E of leg A ÷ leg B over time, with premium/discount stats, a window gauge, and ±-range. Either leg can be a single ticker **or** a sub-sector aggregate (sentinels `~avg~<sector>` / `~med~<sector>`); a sector-aggregate leg **excludes the other leg's ticker** from its own average/median. **Custom basket** (added 2026-09-29): either leg's sub-sector menu also offers `Custom basket`, which opens a checkbox picker of all 91 names grouped by sub-sector (filter box, tick a whole sub-sector at once, Clear all). The leg then works exactly like a sub-sector aggregate: sentinels `~avg~Custom basket` / `~med~Custom basket` go through the same `legSeries()`, so the basket is equal-weighted, uses whichever members have a P/E on each date, and leaves out the other leg's ticker. One basket is shared by both legs and saved in the viewer's browser (`localStorage` key `pehistory.pairs.basket`, filtered to current tickers on load); it is never embedded in the page, so the email charts and other viewers are unaffected. Members are stored in sub-sector order, so a basket holding a whole sub-sector reproduces that sub-sector's built-in aggregate bit for bit. **Click-to-measure:** when leg A is a single ticker, click two dates on the chart to read **A's share-price total return** between them. Disabled with a hint when A is an aggregate.
-- **Name P/E** — single-name forward P/E vs its own history: ±1σ band, full-history mean, percentile, z-score, hover crosshair. A **High / Average / Low P/E table** sits at the top (added 2026-10-28; `npHiLo()` in `template.html`), with 1Y, 3Y and 5Y columns. It always runs trailing to the name's latest observation and ignores the chart's History window. Each high and low shows its date. A column longer than the name's history is headed "since <month>" (e.g. WLTH, CRCL).
+- **Name P/E** — single-name forward P/E vs its own history: ±1σ band, full-history mean, percentile, z-score, hover crosshair. A **High / Average / Low P/E table** sits at the top (added 2026-10-28; `npHiLo()` in `template.html`), with 1Y, 3Y and 5Y columns. It always runs trailing to the name's latest observation and ignores the chart's History window. Each high and low shows its date. A column longer than the name's history is headed "since <month>" (e.g. WLTH, CRCL). The name list also carries any **reference series** from `xs_data.json` right after its base ticker (currently `RJF US · CY2 fwd`, §5); it gets the same chart, cards and table, plus a note saying what it is.
 - **Software** *(reference for JKHY)* — two pair-style selectors, **Focus** and **Compare to**, each drawn from a unified list: JKHY, **Software average**, **Software median**, and the 8 individual software names. The chart plots the two chosen series (focus teal, comparator orange) with the other software names as a faint backdrop; headline cards show each level, the focus-vs-comparator gap (red=richer/green=cheaper), and the focus's 5Y percentile; a reference table lists everyone with their own 5Y percentile. **Reference only** — `SW` is separate from the 91-name universe; nothing here feeds pairs/screens/the backtest. Default A=JKHY, B=Software median; state in `ST.swA`/`ST.swB`/`ST.swM`.
 - **Flags / Summary / Screen / Matrix / Coverage** — cross-sectional cheap/rich views from `DATA.pe`.
 - **Grid** — sub-sector small-multiple sparklines; each name vs its peer median/average (ex-self), or curated intra-sub-sector pairs; cross-sector "Compare to" hero card.
@@ -208,7 +217,7 @@ Excluded from the P/E panel: none. (The vendor re-tickered `RELY LN`→`RELY US`
 4. **Sub-sector aggregates and the custom basket are equal-weighted** and **self-exclude** (the other leg's ticker is always left out).
 5. **Color convention:** green = cheap / positive / won; red = rich / negative / lost. The generic `.pos`/`.neg` CSS classes are **intentionally inverted** (red for premium/rich) — reuse existing inline colors.
 6. **Backtest math:** expanding-window z-score, **min 18-month** baseline; single-name signal = −z of own forward P/E; pair signal = −z of `ln(P/E_a / P/E_b)`; **population** standard deviation; monthly adjusted close, local currency, cross-currency legs FX-hedged; pair LS return = `r_A − r_B`.
-7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 91-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest.
+7. **Software is reference-only and isolated** — `SW` must never be merged into `DATA`/the 91-name universe or the CLUSTERS; the Software tab must not feed pairs/screens/backtest. **The same holds for the `XS` reference series** (§5): they live in `XPE`, never in `PE`, and are shown in Name P/E only.
 8. **The gate (§4) must pass 39/39 after every rebuild.**
 
 ---
@@ -297,6 +306,7 @@ The HTML **embeds Bloomberg-sourced forward P/E and S&P-Global-derived adjusted 
 - **Lincoln (`LNC`) is not covered** (asked 2026-10-07). The workbook carries exactly the 91 SECTORS tickers, with no Lincoln column. Adding it needs a workbook column first, then a SECTORS entry (§8). It is a life insurer, so it fits none of the 7 sub-sectors as they stand.
 - **Custom history windows (2026-10-27):** every 1Y/3Y/5Y/Max control now also offers Custom From/To dates (§6). Verified in Chromium on all five tabs, with no console errors. The custom-window figures match an independent Python computation from `data.json` (Pairs TW/MKTX over 2024, Name P/E CME over Mar–Jun 2023, Grid ENX vs the ex-self Exchanges median over 2024, Re-rate CME over 2022). The 22 email charts are byte-identical, and the gate passes 39/39. At 390px the control wraps instead of overflowing. No data changed.
 - **Name P/E high/average/low table (2026-10-28):** added at the top of the tab (§6). Verified in Chromium at 1280px and 390px (no overflow, no console errors). The values and dates match an independent Python computation from `data.json` for CME, ADYEN, WLTH and CRCL, and the table does not move when the chart's window changes. The gate passes 39/39. No data changed. The 18 pair email charts are byte-identical. The 4 single-name chart PNGs are not, because the taller page moves the screenshot's sub-pixel position and so the anti-aliasing. Their chart SVG markup, size, stat cards and note are identical to before (§10).
+- **RJF calendarized 2-yr-forward reference series (2026-10-29):** the investor pasted RJF's calendarized 2-year-forward P/E (16 Jan 2024 → 28 Oct 2026, 700 US trading days; the only panel dates it lacks are the 27 US market holidays). It is shown in Name P/E as `RJF US · CY2 fwd` (§5, §6). It moves with the share price on almost every day (median unexplained gap 0.003pp) and is smooth through RJF's October FY+1 rolls (Oct 2024 +0.9% against −8.0% for FY+1; Oct 2025 −1.2% against −11.7%; 28 Oct 2026 +0.2% against −14.4%), but it has steps of its own on flat share prices: −15.6% on 2025-10-03, −9.5% on 2024-12-12 and −7.3% on 2024-07-15. On 28 Oct it sits at 9.4x, the 9th percentile of its range (10.8x average). Verified in Chromium (no console errors; no overflow at 390px); its table and cards match an independent Python computation; the ten other tabs render identically to `main`; RJF's own FY+1 chart and the 4 single-name email charts are unchanged (SVG markup identical). The gate passes 39/39. No existing data changed.
 - **Custom basket on the Pairs tab (2026-09-29):** pick any set of names and compare a name against their average or median (§6). Verified in Chromium: the basket's average and median match an independent Python computation from `data.json` on all 1,565 dates; adding leg A to the basket leaves the series unchanged; an all-Exchanges basket equals the built-in Exchanges aggregate exactly. Existing pairs and aggregates render identically, the 22 email charts are byte-identical, and the gate passes 39/39. No data changed.
 - **CLUSTERS re-ticker fix (2026-09-27):** `RELY LN`→`RELY US` and `SQ SW`→`SQN SW` in all three copies (§8). No data changed: `data.json`, `q_pairs.json` and `bt_results.json` are byte-identical, and the gate passes 39/39. The Grid gained 4 curated pairs (122 → 126), which are also now Flags/Summary candidates.
 - **Sourced revisions (2026-10-29 workbook): 12 names.** SAVE's 126-date recalculation, LAZ's new level, the KKR, COIN and SOFI blocks, Wealthfront's 10-09 step, the `MRX US` and `WLTH US` Mar–Jul blocks, and CME's and SCHW's reverted values all persisted unchanged.
@@ -377,7 +387,7 @@ The HTML **embeds Bloomberg-sourced forward P/E and S&P-Global-derived adjusted 
 ---
 
 ## 13. Definition of done (any change)
-1. `python build.py` regenerates `Relative_PE_Dashboard.html` from `template.html` + the **5** JSON files with no leftover tokens.
+1. `python build.py` regenerates `Relative_PE_Dashboard.html` from `template.html` + the **6** JSON files with no leftover tokens.
 2. `node --check` on the built script passes.
 3. `node bt_verify.js` prints **`✅ ALL CHECKS PASSED (39 passed)`**.
 4. Header `asof`, date span, and **0 weekend rows** are as expected; `DPX` and `SW` span the full `dates` range.
