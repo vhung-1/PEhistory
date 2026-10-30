@@ -1,14 +1,22 @@
 import os
 import pandas as pd, numpy as np, json
 raw = pd.read_excel(os.environ.get('WORKBOOK','Coverage_PE_multiples.xlsx'), sheet_name='HC', header=None)
-tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
+# The sheet can carry a second block to the right: the CALENDARIZED P/E for non-December year-ends
+# (added 2026-10-30, columns CQ.. with their own DATES column, CP). It repeats tickers from the main
+# block, so the FY+1 panel is read only from the columns before that block's DATES column.
+_hdr = [str(x).strip().upper() for x in raw.iloc[4].tolist()]
+CAL_DATES_COL = next((c for c in range(1, raw.shape[1]) if _hdr[c] == 'DATES'), None)
+MAIN_END = CAL_DATES_COL if CAL_DATES_COL is not None else raw.shape[1]
+tickers=[str(x).strip() for x in raw.iloc[2,1:MAIN_END].tolist()]
+_named=[t for t in tickers if t and t!='nan']
+assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
-data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
+data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
 ASOF='2026-10-29'  # latest settled US close (Thu 29 Oct): 90/91 names moved at full precision (AJB LN
-                   # identical). The workbook was pulled Fri 30 Oct at 07:25 UTC, before the US open, so the
-                   # Friday row (9 changes) is a forward-fill and is excluded by this cap; the weekend rows
-                   # are excluded by the weekday filter below.
+                   # identical). Both 30 Oct workbooks (07:25 and 10:53 UTC) were pulled before the US open, so
+                   # the Friday row (9 and 30 changes; the 30 are Europe intraday plus 10 US) is not a settled
+                   # close and is excluded by this cap; the weekend rows are excluded by the weekday filter below.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -69,6 +77,25 @@ for _t,_ds in DROP.items():
         for _i,_d in enumerate(DATES):
             if _d in _ds: PE[_t][_i] = None
 
+
+# --- Calendarized P/E block (non-December year-ends) -> cal_pe.json, consumed by mkxs.py. Keyed by
+# its own dates (column CP), with the same rules as the main panel: weekdays only, capped at ASOF,
+# coverage tickers only, 2 dp. A missing value stays missing; nothing is filled.
+CAL = {}
+if CAL_DATES_COL is not None:
+    _cd = pd.to_datetime(raw.iloc[5:, CAL_DATES_COL], errors='coerce')
+    for c in range(CAL_DATES_COL + 1, raw.shape[1]):
+        t = str(raw.iloc[2, c]).strip()
+        if t not in SECNAMES: continue
+        assert t not in CAL, f'duplicate calendarized column for {t}'
+        s_ = pd.Series(pd.to_numeric(raw.iloc[5:, c], errors='coerce').values, index=_cd.values)
+        s_ = s_[s_.index.notna()].sort_index()
+        s_ = s_[(s_.index <= ASOF) & (s_.index >= data.index[0]) & (s_.index.dayofweek < 5)].dropna()
+        if len(s_):
+            CAL[t] = dict(dates=[d.strftime('%Y-%m-%d') for d in s_.index], pe=[round(float(v), 2) for v in s_.values])
+    _f = str(raw.iloc[4, CAL_DATES_COL + 1]).strip()
+    open('cal_pe.json', 'w').write(json.dumps(dict(asof=ASOF, formula=_f, series=CAL), separators=(',', ':')))
+    print('calendarized series:', len(CAL), sorted(CAL))
 
 payload = dict(asof=DATES[-1], dates=DATES, sectors=SECTORS_F, sector_of=sec_of, excluded=excluded, pe=PE)
 js = json.dumps(payload, separators=(',',':'))
