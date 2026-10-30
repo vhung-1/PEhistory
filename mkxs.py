@@ -24,7 +24,7 @@ PASTED = {}
 ROLL = {
     'V US': 'late January', 'RJF US': 'late January', 'BEN US': 'late January', 'FICO US': 'late January or early February',
     'JKHY US': 'early February', 'HLNE US': 'early February', 'STEP US': 'early February', 'BILL US': 'early February',
-    'AFRM US': 'early February', 'FDS US': 'late March', 'EXPN LN': 'mid-May', 'ICG LN': 'late May', 'AJB LN': 'late May',
+    'AFRM US': 'early February', 'HLI US': 'late January or early February', 'FDS US': 'late March', 'EXPN LN': 'mid-May', 'ICG LN': 'late May', 'AJB LN': 'late May',
 }
 CAVEAT = {
     'RJF US': 'It dips about 14% from 1 to 12 Oct 2026 on a flat share price and snaps back on 13 Oct, which looks like a vendor glitch.',
