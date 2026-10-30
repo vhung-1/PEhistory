@@ -5,10 +5,10 @@ tickers=[str(x).strip() for x in raw.iloc[2,1:].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-10-28'  # latest settled US close (Wed 28 Oct): all 91 names moved at full precision. The
-                   # workbook was pulled Thu 29 Oct at 07:20 UTC, before the US open, so the Thursday row
-                   # (8 changes) is a forward-fill and is excluded by this cap; the weekend rows are
-                   # excluded by the weekday filter below.
+ASOF='2026-10-29'  # latest settled US close (Thu 29 Oct): 90/91 names moved at full precision (AJB LN
+                   # identical). The workbook was pulled Fri 30 Oct at 07:25 UTC, before the US open, so the
+                   # Friday row (9 changes) is a forward-fill and is excluded by this cap; the weekend rows
+                   # are excluded by the weekday filter below.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
