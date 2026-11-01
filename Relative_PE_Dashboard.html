@@ -1940,7 +1940,7 @@ function npHiLo(t,full){
     return{m,hi:v[hi],hiD:D[ps.idx[hi]],lo:v[lo],loD:D[ps.idx[lo]],avg:sum/v.length,short,from:D[ps.idx[0]]};});
   const head='<tr><th></th>'+cols.map(c=>'<th>'+(c.m/12)+'Y'+(c.short?'<small>since '+fmtMon(c.from)+'</small>':'')+'</th>').join('')+'</tr>';
   const row=(k,f)=>'<tr><td>'+k+'</td>'+cols.map(f).join('')+'</tr>';
-  el.innerHTML='<div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>trailing to '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
+  el.innerHTML='<div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>periods ending '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
     +row('High P/E',c=>'<td>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
     +row('Average P/E',c=>'<td>'+fx(c.avg)+'</td>')
     +row('Low P/E',c=>'<td>'+fx(c.lo)+'<small>'+fmtMonD(c.loD)+'</small></td>')
