@@ -175,6 +175,48 @@ table.nphlt tbody td:first-child{font-size:12px;font-weight:600;color:var(--ink2
 table.nphlt tbody td:first-child:hover{color:var(--ink2);text-decoration:none;}
 table.nphlt tbody td small{display:block;line-height:13px;font-size:10px;font-weight:500;color:var(--muted);margin-top:1px;}
 table.nphlt tbody tr:last-child td{border-bottom:0;}
+table.nphlt tbody td[data-pe]{cursor:pointer;}
+table.nphlt tbody td[data-pe]:hover{color:var(--accent);}
+/* valuation scenarios: Name P/E (beside the high/average/low table) and Pairs (below the chart) */
+.hlwrap{display:flex;flex-wrap:wrap;gap:14px 28px;align-items:flex-start;}
+.hlleft{flex:1 1 520px;min-width:0;max-width:660px;}
+.npsc{flex:1 1 340px;min-width:0;border-left:1px solid var(--line);padding:0 0 6px 24px;}
+@media (max-width:1100px){.npsc{border-left:0;border-top:1px solid var(--line);padding:12px 0 6px;}}
+.sccap{font-size:10px;line-height:14px;font-weight:650;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+.sccap span{text-transform:none;letter-spacing:0;font-weight:500;color:var(--faint);margin-left:6px;}
+.scrow{display:grid;grid-template-columns:96px 118px minmax(0,1fr);align-items:center;gap:6px 10px;padding:7px 0;border-bottom:1px solid var(--line);}
+.scrow>label{font-size:12px;font-weight:600;color:var(--ink2);}
+.scin{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--muted);}
+.scin input{width:78px;font-family:var(--mono);font-size:12px;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:5px 7px;}
+.scin input:focus{outline:2px solid var(--accent);outline-offset:-1px;}
+.scout{font-size:13px;font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums;}
+.scout small{font-size:10.5px;font-weight:500;color:var(--muted);margin-left:5px;white-space:nowrap;display:inline-block;}
+.scup{color:var(--cheap);} .scdn{color:var(--rich);}
+.scchips{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:4px;}
+.scchips button{font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:3px 7px;cursor:pointer;}
+.scchips button:hover{border-color:var(--accent);color:var(--accent);}
+.scnote{font-size:10.5px;color:var(--faint);margin-top:8px;line-height:1.5;}
+@media (max-width:560px){.scrow{grid-template-columns:auto minmax(0,1fr);}.scrow .scout,.scchips{grid-column:1 / -1;}}
+.psc{margin-top:14px;padding:12px 16px 12px;}
+table.psct{font-variant-numeric:tabular-nums;}
+table.psct thead th{position:static;background:transparent;color:var(--muted);font-size:10.5px;font-weight:650;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--line2);text-align:right;}
+table.psct thead th:first-child,table.psct thead th.l{text-align:left;}
+table.psct thead th:hover{background:transparent;}
+table.psct tbody tr:hover{background:transparent;}
+table.psct tbody td{padding:8px 10px;font-size:13px;font-weight:600;color:var(--ink);vertical-align:middle;}
+table.psct tbody td:first-child{font-size:12px;color:var(--ink2);cursor:default;}
+table.psct tbody td:first-child:hover{color:var(--ink2);text-decoration:none;}
+table.psct tbody td.l{text-align:left;white-space:normal;}
+table.psct .ranges button{padding:4px 9px;font-size:10.5px;}
+table.psct .ranges button:disabled{opacity:.35;cursor:default;}
+table.psct .scin{margin-left:6px;vertical-align:middle;}
+.pscls{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 18px;padding:10px 10px 0;font-size:13px;font-weight:600;color:var(--ink);}
+.pscls small{font-size:11px;font-weight:500;color:var(--muted);}
+@media (max-width:720px){table.psct,table.psct tbody{display:block;}table.psct thead{display:none;}
+  table.psct tr{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:6px 14px;align-items:end;padding:9px 0;border-bottom:1px solid var(--line);}
+  table.psct tbody td{padding:0;border:0;}table.psct tbody td.l{grid-column:1 / -1;order:1;}
+  table.psct tbody td[data-k]::before{content:attr(data-k);display:block;font-size:9.5px;font-weight:650;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);margin-bottom:2px;}
+  .pscls{padding:10px 0 0;}}
 tbody tr.secrow td{background:#EEF3F5;font-weight:650;color:var(--ink);font-size:10.5px;letter-spacing:.7px;text-transform:uppercase;text-align:left;border-bottom:1px solid var(--line2);padding:9px 11px;}
 .cell{border-radius:5px;padding:2px 7px;font-family:var(--mono);font-variant-numeric:tabular-nums;display:inline-block;min-width:46px;}
 tbody tr.rr-up>td{background:rgba(46,125,82,.075);}
@@ -423,6 +465,7 @@ footer b{color:var(--muted);}
       </div>
       <div class="note" id="p-note"></div>
     </div>
+    <div class="panel psc" id="p-sc" hidden></div>
   </section>
 
   <!-- ===== FLAGS ===== -->
@@ -929,7 +972,64 @@ function renderPairs(){
   } else { document.getElementById('p-note').innerHTML=bkEmpty?'The custom basket has no names to compare against yet. Tick names in the basket list (the other leg is always left out).':'No overlapping history for this pair in the selected window.'; }
   drawChart(ps,bkEmpty?'Pick names for the custom basket':'');
   renderMeasure();
+  renderPairScenario(bkEmpty?{idx:[],val:[]}:ps,ka,kb,s);
 }
+// ----- valuation scenario (Pairs): each leg holds its multiple, re-rates to its own window-average multiple, takes the
+// multiple that puts the pair on a target premium (window average or one the viewer types), or takes a typed multiple.
+// FY+1 EPS is held, so a leg's price move is its multiple change; long A / short B = A's move minus B's (the backtest's
+// r_A - r_B). Uses the same leg series, window and last date as the chart and cards. Not saved or embedded. -----
+function renderPairScenario(ps,ka,kb,s){
+  const el=document.getElementById('p-sc');if(!el)return;
+  if(!s||ps.idx.length<2){el.hidden=true;el.innerHTML='';ST.psc&&(ST.psc.ctx=null);return;}
+  const A=legSeries(ka,isAgg(ST.B)?null:ST.B),B=legSeries(kb,isAgg(ST.A)?null:ST.A),ix=ps.idx,last=ix[ix.length-1];
+  let sa=0,sb=0;for(const i of ix){sa+=A[i];sb+=B[i];}
+  const key=ST.A+'|'+ST.B+'|'+ka+'|'+kb;
+  if(!ST.psc||ST.psc.key!==key)ST.psc={key,a:'pair',b:'hold',ca:'',cb:'',tm:'avg',tp:''};
+  ST.psc.ctx={cA:A[last],cB:B[last],avA:sa/ix.length,avB:sb/ix.length,mean:s.mean,cur:s.cur,d:D[last],la:legLabel(ka),lb:legLabel(kb),
+    agg:isAgg(ST.A)||isAgg(ST.B),early:winEndsEarly(ST.m)||D[last]<D[N-1],win:winText(ST.m)};
+  el.hidden=false;pscDraw();
+}
+function pscDraw(){
+  const el=document.getElementById('p-sc'),P=ST.psc,c=P&&P.ctx;if(!el||!c)return;
+  const fx=v=>v.toFixed(1)+'x';
+  const seg=(leg,av)=>{const m=P[leg],o=leg==='a'?'b':'a',btn=(k,t,tt)=>'<button type="button" data-leg="'+leg+'" data-mode="'+k+'"'+(m===k?' aria-selected="true"':'')+' title="'+tt+'">'+t+'</button>';
+    return '<span class="ranges">'+btn('hold','Hold','Keep today\u2019s multiple')+btn('own','Own avg '+fx(av),'Re-rate to its own average P/E over the window')
+      +btn('pair','Pair target','Take the multiple that puts the pair on the target premium, given the other leg')+btn('custom','Custom','Type a target P/E')+'</span>'
+      +(m==='custom'?'<span class="scin"><input type="number" step="any" inputmode="decimal" data-f="c'+leg+'" value="'+P['c'+leg]+'" placeholder="'+(leg==='a'?c.cA:c.cB).toFixed(1)+'" aria-label="Target P/E for '+(leg==='a'?c.la:c.lb)+'">x</span>':'');};
+  const tpSeg='<span class="ranges"><button type="button" data-tp="avg"'+(P.tm==='avg'?' aria-selected="true"':'')+' title="The pair\u2019s average premium over the window">Window avg '+sgn(c.mean)+'</button><button type="button" data-tp="custom"'+(P.tm==='custom'?' aria-selected="true"':'')+' title="Type a premium (negative for a discount)">Custom</button></span>'
+    +(P.tm==='custom'?'<span class="scin"><input type="number" step="any" inputmode="decimal" data-f="tp" value="'+P.tp+'" placeholder="'+(c.mean*100).toFixed(1)+'" aria-label="Target premium in percent">%</span>':'');
+  el.innerHTML='<div class="sccap">Valuation scenario<span>'+(c.early?'at '+fmtMonD(c.d):'current')+' multiples, '+c.win+' window \u00b7 FY+1 EPS held</span></div>'
+    +'<div class="tblwrap" style="margin-top:0"><table class="psct"><thead><tr><th></th><th>'+(c.early?'P/E '+fmtMonD(c.d):'Current P/E')+'</th><th class="l">Re-rate to</th><th>Scenario P/E</th><th>Price move</th></tr></thead><tbody>'
+    +'<tr><td>'+c.la+'</td><td data-k="Now">'+fx(c.cA)+'</td><td class="l">'+seg('a',c.avA)+'</td><td data-k="Scenario" data-o="a-pe"></td><td data-k="Move" data-o="a-up"></td></tr>'
+    +'<tr><td>'+c.lb+'</td><td data-k="Now">'+fx(c.cB)+'</td><td class="l">'+seg('b',c.avB)+'</td><td data-k="Scenario" data-o="b-pe"></td><td data-k="Move" data-o="b-up"></td></tr>'
+    +'<tr><td>Premium A \u00f7 B</td><td data-k="Now">'+sgn(c.cur)+'</td><td class="l">Target '+tpSeg+'</td><td data-k="Scenario" data-o="prem"></td><td></td></tr>'
+    +'</tbody></table></div><div class="pscls" data-o="ls"></div>'
+    +'<div class="scnote">Own avg is the leg\u2019s average P/E over the window shown in the chart. Pair target gives that leg the multiple that puts A \u00f7 B on the target premium, taking the other leg\u2019s scenario multiple as given; only one leg can take it. With FY+1 EPS held, each leg\u2019s price move equals its multiple change, and long A / short B is A\u2019s move minus B\u2019s.'
+    +(c.agg?' An aggregate leg\u2019s move is the change in its equal-weighted multiple, not a single share price.':'')+'</div>';
+  pscCalc();
+}
+function pscCalc(){
+  const el=document.getElementById('p-sc'),P=ST.psc,c=P&&P.ctx;if(!el||!c)return;
+  const fx=v=>v.toFixed(1)+'x',set=(f,h)=>{const o=el.querySelector('[data-o="'+f+'"]');if(o)o.innerHTML=h;};
+  const tpv=P.tm==='avg'?c.mean:scNum(P.tp)!=null?scNum(P.tp)/100:null,tp=tpv!=null&&tpv>-1?tpv:null;
+  const base=(m,cur,av,cv)=>m==='hold'?cur:m==='own'?av:m==='custom'?(scNum(cv)>0?scNum(cv):null):null;
+  let a2=base(P.a,c.cA,c.avA,P.ca),b2=base(P.b,c.cB,c.avB,P.cb);
+  if(P.a==='pair')a2=b2!=null&&tp!=null?b2*(1+tp):null;
+  if(P.b==='pair')b2=a2!=null&&tp!=null?a2/(1+tp):null;
+  const ua=a2!=null?a2/c.cA-1:null,ub=b2!=null?b2/c.cB-1:null,dash='\u2014';
+  set('a-pe',a2!=null?fx(a2):dash);set('b-pe',b2!=null?fx(b2):dash);
+  set('a-up',ua!=null?scPct(ua):dash);set('b-up',ub!=null?scPct(ub):dash);
+  set('prem',a2!=null&&b2!=null?sgnZ(a2/b2-1):dash);
+  set('ls',ua!=null&&ub!=null?'<span>Long '+c.la+' / short '+c.lb+': '+scPct(ua-ub)+'</span><span>Long '+c.lb+' / short '+c.la+': '+scPct(ub-ua)+'</span><small>'+c.la+' '+sgnZ(ua)+' against '+c.lb+' '+sgnZ(ub)+'</small>':'<small>Type a value to see the result.</small>');
+}
+{const h=document.getElementById('p-sc');
+ h.addEventListener('click',e=>{const P=ST.psc;if(!P||!P.ctx)return;const b=e.target.closest('button');if(!b)return;
+   if(b.dataset.leg){const leg=b.dataset.leg,o=leg==='a'?'b':'a',m=b.dataset.mode;P[leg]=m;if(m==='pair'&&P[o]==='pair')P[o]='hold';
+     if(m==='custom'&&P['c'+leg]==='')P['c'+leg]=(leg==='a'?P.ctx.cA:P.ctx.cB).toFixed(1);pscDraw();
+     if(m==='custom'){const i=h.querySelector('input[data-f="c'+leg+'"]');if(i){i.focus();i.select();}}}
+   else if(b.dataset.tp){P.tm=b.dataset.tp;if(P.tm==='custom'&&P.tp==='')P.tp=(P.ctx.mean*100).toFixed(1);pscDraw();
+     if(b.dataset.tp==='custom'){const i=h.querySelector('input[data-f="tp"]');if(i){i.focus();i.select();}}}});
+ h.addEventListener('input',e=>{const P=ST.psc,f=e.target.dataset&&e.target.dataset.f;if(!P||!f)return;P[f]=e.target.value;pscCalc();});}
 function drawChart(ps,emptyMsg){
   const host=cv.parentElement,dpr=window.devicePixelRatio||1;
   const W=host.clientWidth,H=host.clientHeight;
@@ -1940,12 +2040,63 @@ function npHiLo(t,full){
     return{m,hi:v[hi],hiD:D[ps.idx[hi]],lo:v[lo],loD:D[ps.idx[lo]],avg:sum/v.length,short,from:D[ps.idx[0]]};});
   const head='<tr><th></th>'+cols.map(c=>'<th>'+(c.m/12)+'Y'+(c.short?'<small>since '+fmtMon(c.from)+'</small>':'')+'</th>').join('')+'</tr>';
   const row=(k,f)=>'<tr><td>'+k+'</td>'+cols.map(f).join('')+'</tr>';
-  el.innerHTML='<div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>periods ending '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
-    +row('High P/E',c=>'<td>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
-    +row('Average P/E',c=>'<td>'+fx(c.avg)+'</td>')
-    +row('Low P/E',c=>'<td>'+fx(c.lo)+'<small>'+fmtMonD(c.loD)+'</small></td>')
-    +'</tbody></table></div>';
+  const pe=(v,lab)=>' data-pe="'+v.toFixed(2)+'" title="Use '+fx(v)+' ('+lab+') as the target P/E"';
+  el.innerHTML='<div class="hlwrap"><div class="hlleft"><div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>periods ending '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
+    +row('High P/E',c=>'<td'+pe(c.hi,(c.m/12)+'Y high')+'>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
+    +row('Average P/E',c=>'<td'+pe(c.avg,(c.m/12)+'Y average')+'>'+fx(c.avg)+'</td>')
+    +row('Low P/E',c=>'<td'+pe(c.lo,(c.m/12)+'Y low')+'>'+fx(c.lo)+'<small>'+fmtMonD(c.loD)+'</small></td>')
+    +'</tbody></table></div></div><div class="npsc" id="np-sc"></div></div>';
+  npScenario(t,full,cols);
 }
+// ----- valuation scenarios (Name P/E): the move to a target multiple, the multiple a price move implies, and the FY+1 EPS
+// a price implies at an assumed multiple. FY+1 EPS is held at the level today's price and P/E imply (price / P/E). The
+// share price is the S&P close the splice stores in DPXMETA.spot (local currency; LSE names in pounds); the viewer can
+// overwrite it. Nothing here is saved or embedded: it is recomputed from the inputs each time. -----
+const SPOT=DPXMETA.spot||{};
+function npSpot(t,d){
+  const s=SPOT[t];if(!s)return null;
+  if(s[2]===d)return{px:s[0],ccy:s[1],d,same:true};
+  // the P/E's last date is earlier than the stored close (a reference series that stops before the panel):
+  // carry the close back along the S&P total-return series, so price and P/E refer to the same day
+  const p=DPX[t],i=D.indexOf(d),j=D.indexOf(s[2]);
+  if(!p||i<0||j<0||p[i]==null||p[j]==null)return null;
+  return{px:s[0]*p[i]/p[j],ccy:s[1],d,same:false};
+}
+const scNum=v=>{const x=parseFloat(v);return isFinite(x)?x:null;};
+const sgnZ=x=>Math.abs(x)<5e-4?'0.0%':sgn(x);
+const scPct=x=>Math.abs(x)<5e-4?'<span>0.0%</span>':'<span class="'+(x>=0?'scup':'scdn')+'">'+sgn(x)+'</span>';
+function npScenario(t,full,cols){
+  const el=document.getElementById('np-sc');if(!el)return;
+  const base=XPE[t]?XS.series[t].base:t,k=full.idx.length-1,cur=full.val[k],d=D[full.idx[k]],sp=npSpot(base,d);
+  if(!(ST.npSc&&ST.npSc.t===t&&ST.npSc.d===d))ST.npSc={t,d,px:sp?sp.px.toFixed(2):'',tpe:'',mv:'',ape:''};
+  const S=ST.npSc;S.ctx={cur,sp};
+  const ccy=sp?sp.ccy:'',fx=v=>v.toFixed(1)+'x';
+  const inp=(f,suf,ph,lab)=>'<span class="scin"><input type="number" step="any" inputmode="decimal" data-f="'+f+'" value="'+S[f]+'" placeholder="'+ph+'" aria-label="'+lab+'">'+suf+'</span>';
+  const row=(lab,f,suf,ph,aria,extra)=>'<div class="scrow"><label>'+lab+'</label>'+inp(f,suf,ph,aria)+'<div class="scout" data-o="'+f+'"></div>'+(extra||'')+'</div>';
+  el.innerHTML='<div class="sccap">Valuation scenarios<span>FY+1 EPS held at today\u2019s implied level</span></div>'
+    +row('Share price','px',ccy,'price','Share price'+(ccy?' in '+ccy:''))
+    +row('Target P/E','tpe','x',cur.toFixed(1),'Target P/E','<div class="scchips">'+cols.map(c=>'<button type="button" data-pe="'+c.avg.toFixed(2)+'">'+(c.m/12)+'Y avg '+fx(c.avg)+'</button>').join('')+'</div>')
+    +row('Price move','mv','%','+10','Price move in percent')
+    +row('Assumed P/E','ape','x',cur.toFixed(1),'Assumed P/E')
+    +'<div class="scnote">Upside or downside to a target P/E holds FY+1 EPS where today\u2019s price and P/E put it (price \u00f7 P/E). A price move gives the P/E it implies on the same EPS; an assumed P/E gives the FY+1 EPS the price implies at that multiple. Click any P/E in the table to use it as the target. '
+    +(sp?'The price is the S&P close'+(sp.same?' on '+fmtMonD(d):' on '+fmtMonD(SPOT[base][2])+', carried back to '+fmtMonD(d)+' (the P/E\u2019s last date) along the S&P total-return series')+', in '+ccy+(ccy==='GBP'?' (pounds, not pence)':'')+'; type over it to use another.':'There is no stored S&P close for this name on '+fmtMonD(d)+'; type a price to see price and EPS levels.')+'</div>';
+  npScCalc();
+}
+function npScCalc(){
+  const S=ST.npSc;if(!S||!S.ctx)return;const el=document.getElementById('np-sc');if(!el)return;
+  const {cur,sp}=S.ctx,ccy=sp?' '+sp.ccy:'',px=scNum(S.px),fp=v=>v.toFixed(2)+ccy,fx=v=>v.toFixed(1)+'x',set=(f,h)=>{const o=el.querySelector('[data-o="'+f+'"]');if(o)o.innerHTML=h;};
+  const eps=px!=null&&px>0?px/cur:null;
+  set('px','P/E '+fx(cur)+' \u00b7 FY+1 EPS '+(eps!=null?eps.toFixed(2):'\u2014')+'<small>'+(sp&&px!=null&&Math.abs(px-sp.px)<0.005?'S&P close':px!=null?'your price':'')+'</small>');
+  const tp=scNum(S.tpe);
+  set('tpe',tp!=null&&tp>0?scPct(tp/cur-1)+(eps!=null?'<small>price '+fp(eps*tp)+'</small>':''):'');
+  const mv=scNum(S.mv);
+  set('mv',mv!=null&&mv>-100?'P/E '+fx(cur*(1+mv/100))+(px!=null&&px>0?'<small>price '+fp(px*(1+mv/100))+'</small>':''):'');
+  const ap=scNum(S.ape);
+  set('ape',ap!=null&&ap>0?'FY+1 EPS '+(px!=null&&px>0?(px/ap).toFixed(2)+ccy:'\u2014')+'<small>'+sgnZ(cur/ap-1)+' vs the EPS implied today</small>':'');
+}
+{const h=document.getElementById('np-hl');
+ h.addEventListener('input',e=>{const f=e.target.dataset&&e.target.dataset.f;if(!f||!ST.npSc)return;ST.npSc[f]=e.target.value;npScCalc();});
+ h.addEventListener('click',e=>{const b=e.target.closest('[data-pe]');if(!b||!ST.npSc)return;ST.npSc.tpe=b.dataset.pe;const i=h.querySelector('#np-sc input[data-f="tpe"]');if(i)i.value=b.dataset.pe;npScCalc();});}
 function npRefreshNames(){const nn=namesIn(ST.npSec).flatMap(t=>[t,...xsFor(t)]);if(!nn.includes(ST.npName))ST.npName=nn[0];fillSelV(document.getElementById('np-name'),nn.map(t=>({v:t,t:npLab(t)})),ST.npName);}
 function renderNamePE(){
   const t=ST.npName;

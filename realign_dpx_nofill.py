@@ -57,5 +57,6 @@ i = D.index(LAST_SOURCED)
 print(f'populated on {LAST_SOURCED}: {sum(1 for t in out if out[t][i] is not None)}/{len(out)}')
 
 payload = {'asof': LAST_SOURCED, 'note': prev['note'], 'px': out}
+if 'spot' in prev: payload['spot'] = prev['spot']   # the last sourced closes (scenario share price); still dated LAST_SOURCED
 json.dump(payload, open('daily_px.json', 'w'), separators=(',', ':'))
 print(f"daily_px.json realigned to {len(D)} dates, asof {payload['asof']} (P/E panel asof {main['asof']})")
