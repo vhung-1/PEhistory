@@ -28,6 +28,8 @@ for t in univ:
     elif t in QUAL: SMAP[QUAL[t]]=t
     elif t.endswith(' US'): SMAP[t[:-3]]=t
 
+SPOT = {}   # ticker -> [last close as quoted, currency, date]; feeds the scenario panels' share price
+
 def load_pull(fp):
     raw = json.loads(open(fp).read())
     out = {}
@@ -44,6 +46,11 @@ def load_pull(fp):
                 except (ValueError, TypeError): pass
         if pm: out[bbg] = pm
         else: print(f'  WARN: {bbg} ({key}) — no price data')
+        # The pull's last close is the actual (unadjusted) close: S&P back-adjusts to the end date, so
+        # the end-date value carries no adjustment (checked against an adjusted=false pull, 2026-11-03).
+        last = [q for q in prices if q.get('close', {}).get('value') not in (None, '', 'N/A')]
+        if bbg and last:
+            SPOT[bbg] = [float(last[-1]['close']['value']), last[-1]['close'].get('unit'), last[-1]['date']]
     return out
 
 print('Loading pull files...')
@@ -127,6 +134,7 @@ for t in sorted(univ):
 
 payload = {'asof': new_data['asof'],
            'note': 'S&P Global daily ADJUSTED close (total return), local currency, single back-adjustment basis, aligned to trading days, holiday-ffilled',
-           'px': DPX}
+           'px': DPX,
+           'spot': {t: SPOT[t] for t in sorted(univ) if t in SPOT}}
 json.dump(payload, open('daily_px.json', 'w'), separators=(',', ':'))
 print(f"\ndaily_px.json {os.path.getsize('daily_px.json')/1e6:.2f} MB | tickers {len(DPX)} | panel {len(new_dates)} | asof {payload['asof']}")
