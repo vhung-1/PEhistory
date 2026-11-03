@@ -196,8 +196,17 @@ table.nphlt tbody td[data-pe]:hover{color:var(--accent);}
 .scchips button{font-family:var(--mono);font-size:10.5px;color:var(--ink2);background:var(--panel2);border:1px solid var(--line2);border-radius:6px;padding:3px 7px;cursor:pointer;}
 .scchips button:hover{border-color:var(--accent);color:var(--accent);}
 .scnote{font-size:10.5px;color:var(--faint);margin-top:8px;line-height:1.5;}
+.scvs{font-size:10.5px;font-weight:500;color:var(--muted);margin-top:3px;line-height:1.4;}
+.scvs span{font-weight:650;}
+.scvs i{font-style:normal;white-space:nowrap;}
 @media (max-width:560px){.scrow{grid-template-columns:auto minmax(0,1fr);}.scrow .scout,.scchips{grid-column:1 / -1;}}
 .psc{margin-top:14px;padding:12px 16px 12px;}
+.rqin input{width:72px;font-size:13px;padding:7px 8px;}
+.rqsum{margin-top:14px;padding:0 4px;font-size:12.5px;color:var(--ink2);}
+#rq-table td.rqsec{text-align:left;font-size:11.5px;}
+#rq-table th.rqsec{text-align:left;}
+@media (max-width:640px){#rq-table .rqsec{display:none;}}
+#rq-table td small{display:block;font-size:9.5px;color:var(--faint);font-weight:500;line-height:12px;}
 table.psct{font-variant-numeric:tabular-nums;}
 table.psct thead th{position:static;background:transparent;color:var(--muted);font-size:10.5px;font-weight:650;letter-spacing:.5px;padding:6px 10px;border-bottom:1px solid var(--line2);text-align:right;}
 table.psct thead th:first-child,table.psct thead th.l{text-align:left;}
@@ -402,6 +411,7 @@ footer b{color:var(--muted);}
         <button role="tab" aria-selected="false" data-tab="flags">Flags</button>
         <button role="tab" aria-selected="false" data-tab="summary">Summary</button>
         <button role="tab" aria-selected="false" data-tab="screen">Screen</button>
+        <button role="tab" aria-selected="false" data-tab="reqpe">Required P/E</button>
         <button role="tab" aria-selected="false" data-tab="matrix">Matrix</button>
         <button role="tab" aria-selected="false" data-tab="grid">Grid</button>
         <button role="tab" aria-selected="false" data-tab="coverage">Coverage</button>
@@ -559,6 +569,25 @@ footer b{color:var(--muted);}
       <b>1Y / 3Y / 5Y avg</b> are the name's own trailing average forward P/E over that window; the <b>vs</b> column beside each is today's multiple against it — green = trading <b>below</b> its own average (cheap), red = above (rich).
       <b>%ile / Z</b> are current vs the name's own <b>full</b> embedded history (low = cheap). <b>vs Sector</b> compares each name's P/E to the sector median — current and on 5-yr averages.
       <b>Re-rate gap</b> = current premium to sector less its historical premium; negative (green) = de-rated vs peers relative to normal.
+    </div>
+  </section>
+
+  <!-- ===== REQUIRED P/E ===== -->
+  <section class="view" id="view-reqpe" role="tabpanel">
+    <div class="panel pcontrols" style="padding-bottom:16px;align-items:flex-end;">
+      <div class="ctl"><label for="rq-ret">Required return</label><span class="scin rqin"><input type="number" id="rq-ret" step="1" inputmode="decimal" value="20" aria-label="Required price return in percent">%</span></div>
+      <div class="ctl"><label>Sector</label><select id="rq-sector"></select></div>
+      <div class="xnote" style="align-self:flex-end;padding-bottom:9px;">All of the price return from re-rating (FY+1 EPS held) · click a ticker to open it in Name P/E · click a column to sort</div>
+    </div>
+    <div class="rqsum" id="rq-sum"></div>
+    <div class="panel tblwrap" style="margin-top:10px;padding:0 0 4px;">
+      <table id="rq-table"><thead></thead><tbody></tbody></table>
+    </div>
+    <div class="note" style="border:0;padding-top:12px;">
+      <b>Required P/E</b> = today’s forward P/E × (1 + required return): the multiple the stock must reach for its share price to deliver the return with FY+1 EPS unchanged, so all of the return comes from re-rating. Use a negative return for a short.
+      <b>Required vs 1Y avg</b> is that multiple against the name’s own average P/E over the year to its latest date, the same 1Y average as the Name P/E table (red = a premium to its average, green = still a discount). <b>Now vs 1Y avg</b> is today’s multiple on the same basis.
+      <b>Required %ile</b> is the share of the last year’s trading days on which the P/E was lower; “above 1Y high” means the required multiple was never reached in the year.
+      Names with less than a year of history use their history since listing (marked “since”). The 1Y average includes the months before each name’s annual FY+1 roll, when the multiple sat on the nearer year’s EPS, so it runs a little above a like-for-like average for names that rolled during the year.
     </div>
   </section>
 
@@ -1310,6 +1339,42 @@ function renderScreen(){
   tb.querySelectorAll('td[data-t]').forEach(td=>td.onclick=()=>{const t=td.dataset.t;ST.A=t;ST.aSec=SECOF[t]||'All coverage';initPairControls();switchTab('pairs');renderPairs();});
 }
 
+// ---------- REQUIRED P/E ----------
+// For a required price return r, the FY+1 P/E a name must reach if all of the return is re-rating (EPS held):
+// today's P/E x (1 + r), set against the name's own 1Y average (the Name P/E table's, via peSeries + sliceMonths).
+const RQCOLS=[['t','Ticker'],['sec','Sub-sector'],['cur','P/E now'],['a1','1Y avg'],['d1','Now vs 1Y avg'],['req','Required P/E'],['rd','Required vs 1Y avg'],['pile','Required %ile of 1Y'],['hi','1Y high']];
+function renderReqPE(){
+  const rv=scNum(ST.rqRet),ok=rv!=null&&rv>-100,R=ok?rv/100:null;
+  const rows=namesIn(ST.rqSec).map(t=>{const full=peSeries(t);if(!full.val.length)return null;
+    const k=full.idx.length-1,cur=full.val[k],d=D[full.idx[k]],ps=sliceMonths(full,12),v=ps.val;
+    let sum=0,hi=-Infinity;for(const x of v){sum+=x;if(x>hi)hi=x;}const a1=sum/v.length;
+    const cut=new Date(d+'T00:00:00');cut.setMonth(cut.getMonth()-12);
+    const short=new Date(D[ps.idx[0]]+'T00:00:00')-cut>7*864e5,req=ok?cur*(1+R):null;
+    return{t,sec:SECOF[t]||'',cur,d,a1,d1:cur/a1-1,req,rd:ok?req/a1-1:null,pile:ok?v.filter(x=>x<req).length/v.length*100:null,hi,short,from:D[ps.idx[0]]};}).filter(Boolean);
+  const k=ST.rqSort.k,dir=ST.rqSort.dir;
+  rows.sort((x,y)=>{if(k==='t'||k==='sec')return (x[k]<y[k]?-1:x[k]>y[k]?1:0)*dir;
+    const xv=x[k],yv=y[k];if(xv==null&&yv==null)return 0;if(xv==null)return 1;if(yv==null)return -1;return (xv-yv)*dir;});
+  const thead=document.querySelector('#rq-table thead');
+  thead.innerHTML='<tr>'+RQCOLS.map(([key,lab])=>`<th data-k="${key}"${key==='sec'?' class="rqsec"':''}>${lab}${k===key?`<span class="ar">${dir>0?'▲':'▼'}</span>`:''}</th>`).join('')+'</tr>';
+  thead.querySelectorAll('th').forEach(th=>th.onclick=()=>{const kk=th.dataset.k;if(ST.rqSort.k===kk)ST.rqSort.dir*=-1;else{ST.rqSort.k=kk;ST.rqSort.dir=1;}renderReqPE();});
+  const dC=v=>`background:${scaleBG(v,-0.30,0,0.30,[227,241,232],WHITE,[251,231,228])}`;
+  const dCell=v=>v==null?'<td class="num muted-c">—</td>':`<td class="num"><span class="cell" style="${dC(v)}">${sgnZ(v)}</span></td>`;
+  const pC=v=>`background:${scaleBG(v,0,50,100,[227,241,232],WHITE,[251,231,228])}`;
+  const tb=document.querySelector('#rq-table tbody');
+  tb.innerHTML=rows.map(r=>`<tr><td data-t="${r.t}">${r.t}</td><td class="muted-c rqsec">${r.sec}</td>
+    <td class="num">${px(r.cur)}${r.d<D[N-1]?`<small>at ${fmtMonD(r.d)}</small>`:''}</td>
+    <td class="num muted-c">${px(r.a1)}${r.short?`<small>since ${fmtMon(r.from)}</small>`:''}</td>${dCell(r.d1)}
+    <td class="num"><b>${r.req!=null?px(r.req):'—'}</b></td>${dCell(r.rd)}
+    <td class="num">${r.pile==null?'—':`<span class="cell" style="${pC(r.pile)}">${r.pile>=100?'above 1Y high':r.pile.toFixed(0)}</span>`}</td>
+    <td class="num muted-c">${px(r.hi)}</td></tr>`).join('');
+  tb.querySelectorAll('td[data-t]').forEach(td=>td.onclick=()=>{const t=td.dataset.t;
+    ST.npSec=SECOF[t]||'All coverage';ST.npName=t;ST.npPend=ok?{t,mv:String(rv)}:null;
+    const ss=document.getElementById('np-sector');if(ss)ss.value=ST.npSec;npRefreshNames();switchTab('namepe');});
+  const n=rows.length,above=ok?rows.filter(r=>r.rd>0).length:0,high=ok?rows.filter(r=>r.pile>=100).length:0;
+  document.getElementById('rq-sum').innerHTML=ok?`For a <b>${sgnZ(R)}</b> price return with FY+1 EPS held, <b>${above}</b> of ${n} names would need a P/E above their 1Y average, and <b>${high}</b> a P/E above their 1Y high.`
+    :'Type a required return in percent (above −100).';
+}
+
 // ---------- MATRIX ----------
 function renderMatrix(){
   const sec=ST.mSec,names=SEC[sec],cur={};names.forEach(t=>cur[t]=lastVal(t));
@@ -1429,6 +1494,7 @@ function switchTab(t){
   if(t==='flags'){renderFlags();renderPairFlags();}
   if(t==='summary')renderSummary();
   if(t==='screen')renderScreen();
+  if(t==='reqpe')renderReqPE();
   if(t==='matrix')renderMatrix();
   if(t==='grid')renderGrid();
   if(t==='namepe')renderNamePE();
@@ -1484,6 +1550,9 @@ document.getElementById('p-swap').onclick=()=>{[ST.A,ST.B]=[ST.B,ST.A];[ST.aSec,
 wireRange('p-range',()=>ST.m,v=>{ST.m=v;},renderPairs);
 document.getElementById('f-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.fMode=b.dataset.mode;document.querySelectorAll('#f-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderFlags();});
 
+ST.rqRet='20';ST.rqSec='All coverage';ST.rqSort={k:'rd',dir:1};
+{const sel=document.getElementById('rq-sector');fillSel(sel,['All coverage',...sectorList()],ST.rqSec);sel.onchange=()=>{ST.rqSec=sel.value;renderReqPE();};
+ document.getElementById('rq-ret').addEventListener('input',e=>{ST.rqRet=e.target.value;renderReqPE();});}
 const sSecSel=document.getElementById('s-sector');fillSel(sSecSel,['All coverage',...sectorList()],ST.sSec);sSecSel.onchange=()=>{ST.sSec=sSecSel.value;renderScreen();};
 const mSecSel=document.getElementById('m-sector');fillSel(mSecSel,sectorList(),ST.mSec);mSecSel.onchange=()=>{ST.mSec=mSecSel.value;renderMatrix();};
 document.getElementById('m-mode').querySelectorAll('button').forEach(b=>b.onclick=()=>{ST.mMode=b.dataset.mode;document.querySelectorAll('#m-mode button').forEach(x=>x.setAttribute('aria-selected',x===b));renderMatrix();});
@@ -2040,7 +2109,7 @@ function npHiLo(t,full){
     return{m,hi:v[hi],hiD:D[ps.idx[hi]],lo:v[lo],loD:D[ps.idx[lo]],avg:sum/v.length,short,from:D[ps.idx[0]]};});
   const head='<tr><th></th>'+cols.map(c=>'<th>'+(c.m/12)+'Y'+(c.short?'<small>since '+fmtMon(c.from)+'</small>':'')+'</th>').join('')+'</tr>';
   const row=(k,f)=>'<tr><td>'+k+'</td>'+cols.map(f).join('')+'</tr>';
-  const pe=(v,lab)=>' data-pe="'+v.toFixed(2)+'" title="Use '+fx(v)+' ('+lab+') as the target P/E"';
+  const pe=(v,lab)=>' data-pe="'+v.toFixed(1)+'" title="Use '+fx(v)+' ('+lab+') as the target P/E"';
   el.innerHTML='<div class="hlwrap"><div class="hlleft"><div class="hlcap">'+(XPE[t]?npLab(t)+' P/E':t+' forward P/E')+'<span>periods ending '+fmtMonD(last)+'</span></div><div class="tblwrap" style="margin-top:0"><table class="nphlt"><thead>'+head+'</thead><tbody>'
     +row('High P/E',c=>'<td'+pe(c.hi,(c.m/12)+'Y high')+'>'+fx(c.hi)+'<small>'+fmtMonD(c.hiD)+'</small></td>')
     +row('Average P/E',c=>'<td'+pe(c.avg,(c.m/12)+'Y average')+'>'+fx(c.avg)+'</td>')
@@ -2068,31 +2137,39 @@ const scPct=x=>Math.abs(x)<5e-4?'<span>0.0%</span>':'<span class="'+(x>=0?'scup'
 function npScenario(t,full,cols){
   const el=document.getElementById('np-sc');if(!el)return;
   const base=XPE[t]?XS.series[t].base:t,k=full.idx.length-1,cur=full.val[k],d=D[full.idx[k]],sp=npSpot(base,d);
-  if(!(ST.npSc&&ST.npSc.t===t&&ST.npSc.d===d))ST.npSc={t,d,px:sp?sp.px.toFixed(2):'',tpe:'',mv:'',ape:''};
-  const S=ST.npSc;S.ctx={cur,sp};
+  if(!(ST.npSc&&ST.npSc.t===t&&ST.npSc.d===d))ST.npSc={t,d,px:sp?sp.px.toFixed(1):'',tpe:'',mv:'',ape:''};
+  if(ST.npPend&&ST.npPend.t===t)ST.npSc.mv=ST.npPend.mv;   // sent from the Required P/E tab
+  ST.npPend=null;
+  const S=ST.npSc;
+  // the history the scenario P/Es are compared with: the table's 1Y / 3Y / 5Y averages
+  S.ctx={cur,sp,avgs:cols.map(c=>({lab:c.short?'since '+fmtMon(c.from):(c.m/12)+'Y',v:c.avg}))};
   const ccy=sp?sp.ccy:'',fx=v=>v.toFixed(1)+'x';
-  const inp=(f,suf,ph,lab)=>'<span class="scin"><input type="number" step="any" inputmode="decimal" data-f="'+f+'" value="'+S[f]+'" placeholder="'+ph+'" aria-label="'+lab+'">'+suf+'</span>';
+  const inp=(f,suf,ph,lab)=>'<span class="scin"><input type="number" step="0.1" inputmode="decimal" data-f="'+f+'" value="'+S[f]+'" placeholder="'+ph+'" aria-label="'+lab+'">'+suf+'</span>';
   const row=(lab,f,suf,ph,aria,extra)=>'<div class="scrow"><label>'+lab+'</label>'+inp(f,suf,ph,aria)+'<div class="scout" data-o="'+f+'"></div>'+(extra||'')+'</div>';
-  el.innerHTML='<div class="sccap">Valuation scenarios<span>FY+1 EPS held at today\u2019s implied level</span></div>'
+  el.innerHTML='<div class="sccap">Valuation scenarios<span>FY+1 EPS held at today’s implied level</span></div>'
     +row('Share price','px',ccy,'price','Share price'+(ccy?' in '+ccy:''))
-    +row('Target P/E','tpe','x',cur.toFixed(1),'Target P/E','<div class="scchips">'+cols.map(c=>'<button type="button" data-pe="'+c.avg.toFixed(2)+'">'+(c.m/12)+'Y avg '+fx(c.avg)+'</button>').join('')+'</div>')
-    +row('Price move','mv','%','+10','Price move in percent')
-    +row('Assumed P/E','ape','x',cur.toFixed(1),'Assumed P/E')
-    +'<div class="scnote">Upside or downside to a target P/E holds FY+1 EPS where today\u2019s price and P/E put it (price \u00f7 P/E). A price move gives the P/E it implies on the same EPS; an assumed P/E gives the FY+1 EPS the price implies at that multiple. Click any P/E in the table to use it as the target. '
-    +(sp?'The price is the S&P close'+(sp.same?' on '+fmtMonD(d):' on '+fmtMonD(SPOT[base][2])+', carried back to '+fmtMonD(d)+' (the P/E\u2019s last date) along the S&P total-return series')+', in '+ccy+(ccy==='GBP'?' (pounds, not pence)':'')+'; type over it to use another.':'There is no stored S&P close for this name on '+fmtMonD(d)+'; type a price to see price and EPS levels.')+'</div>';
+    +row('Target P/E','tpe','x','P/E','Target P/E','<div class="scchips">'+cols.map(c=>'<button type="button" data-pe="'+c.avg.toFixed(1)+'">'+(c.m/12)+'Y avg '+fx(c.avg)+'</button>').join('')+'</div>')
+    +row('Price move','mv','%','e.g. 10','Price move in percent')
+    +row('Assumed P/E','ape','x','P/E','Assumed P/E')
+    +'<div class="scnote">Upside or downside to a target P/E holds FY+1 EPS where today’s price and P/E put it (price ÷ P/E). A price move gives the P/E it implies on the same EPS; an assumed P/E gives the FY+1 EPS the price implies at that multiple. Each P/E is also shown against the name’s 1Y, 3Y and 5Y averages (red = a premium to the average, green = a discount). Click any P/E in the table to use it as the target. '
+    +(sp?'The price is the S&P close'+(sp.same?' on '+fmtMonD(d):' on '+fmtMonD(SPOT[base][2])+', carried back to '+fmtMonD(d)+' (the P/E’s last date) along the S&P total-return series')+', in '+ccy+(ccy==='GBP'?' (pounds, not pence)':'')+', shown to one decimal; type over it to use another.':'There is no stored S&P close for this name on '+fmtMonD(d)+'; type a price to see price and EPS levels.')+'</div>';
   npScCalc();
 }
+// a scenario P/E against the name's own history: premium (red, rich) or discount (green, cheap) to each average
+function npVsHist(pe,avgs){return '<div class="scvs">vs avg '+avgs.map(a=>{const x=pe/a.v-1;return '<i>'+a.lab+' <span class="'+(Math.abs(x)<5e-4?'':x>0?'scdn':'scup')+'">'+sgnZ(x)+'</span></i>';}).join(' · ')+'</div>';}
 function npScCalc(){
   const S=ST.npSc;if(!S||!S.ctx)return;const el=document.getElementById('np-sc');if(!el)return;
-  const {cur,sp}=S.ctx,ccy=sp?' '+sp.ccy:'',px=scNum(S.px),fp=v=>v.toFixed(2)+ccy,fx=v=>v.toFixed(1)+'x',set=(f,h)=>{const o=el.querySelector('[data-o="'+f+'"]');if(o)o.innerHTML=h;};
+  const {cur,sp,avgs}=S.ctx,ccy=sp?' '+sp.ccy:'',fp=v=>v.toFixed(1)+ccy,fx=v=>v.toFixed(1)+'x',set=(f,h)=>{const o=el.querySelector('[data-o="'+f+'"]');if(o)o.innerHTML=h;};
+  // the price box shows the S&P close to one decimal; while it is untouched, the full close is used
+  const isSpot=!!sp&&S.px===sp.px.toFixed(1),px=isSpot?sp.px:scNum(S.px);
   const eps=px!=null&&px>0?px/cur:null;
-  set('px','P/E '+fx(cur)+' \u00b7 FY+1 EPS '+(eps!=null?eps.toFixed(2):'\u2014')+'<small>'+(sp&&px!=null&&Math.abs(px-sp.px)<0.005?'S&P close':px!=null?'your price':'')+'</small>');
+  set('px','P/E '+fx(cur)+' · FY+1 EPS '+(eps!=null?eps.toFixed(2):'—')+'<small>'+(isSpot?'S&P close':px!=null?'your price':'')+'</small>'+npVsHist(cur,avgs));
   const tp=scNum(S.tpe);
-  set('tpe',tp!=null&&tp>0?scPct(tp/cur-1)+(eps!=null?'<small>price '+fp(eps*tp)+'</small>':''):'');
+  set('tpe',tp!=null&&tp>0?scPct(tp/cur-1)+(eps!=null?'<small>price '+fp(eps*tp)+'</small>':'')+npVsHist(tp,avgs):'');
   const mv=scNum(S.mv);
-  set('mv',mv!=null&&mv>-100?'P/E '+fx(cur*(1+mv/100))+(px!=null&&px>0?'<small>price '+fp(px*(1+mv/100))+'</small>':''):'');
+  set('mv',mv!=null&&mv>-100?'P/E '+fx(cur*(1+mv/100))+(px!=null&&px>0?'<small>price '+fp(px*(1+mv/100))+'</small>':'')+npVsHist(cur*(1+mv/100),avgs):'');
   const ap=scNum(S.ape);
-  set('ape',ap!=null&&ap>0?'FY+1 EPS '+(px!=null&&px>0?(px/ap).toFixed(2)+ccy:'\u2014')+'<small>'+sgnZ(cur/ap-1)+' vs the EPS implied today</small>':'');
+  set('ape',ap!=null&&ap>0?'FY+1 EPS '+(px!=null&&px>0?(px/ap).toFixed(2)+ccy:'—')+'<small>'+sgnZ(cur/ap-1)+' vs the EPS implied today</small>'+npVsHist(ap,avgs):'');
 }
 {const h=document.getElementById('np-hl');
  h.addEventListener('input',e=>{const f=e.target.dataset&&e.target.dataset.f;if(!f||!ST.npSc)return;ST.npSc[f]=e.target.value;npScCalc();});
