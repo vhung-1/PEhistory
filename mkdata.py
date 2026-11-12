@@ -13,9 +13,9 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-10'  # latest settled US close (Tue 10 Nov): all 91 names moved at full precision. The
-# workbook was pulled the same day at 21:51 UTC (16:51 New York), AFTER the US close, at the investor's
-# request; the new row was checked against the S&P closing prices before use (CLAUDE.md §10).
+ASOF='2026-11-11'  # latest settled US close (Wed 11 Nov, Veterans Day: US equity markets open): 90 of 91
+# names moved at full precision (DWS GY unchanged). The workbook was pulled Thu 12 Nov at 11:54 UTC,
+# before the US open; the Thursday row (20 Europeans live, 7 US changes) is excluded by this cap.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
