@@ -13,9 +13,8 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-12'  # latest settled US close (Thu 12 Nov): 90 of 91 names moved at full precision (IGG LN
-# unchanged). The workbook was saved Fri 13 Nov at 18:01 UTC, during the US session; the Friday row is
-# intraday and is excluded by this cap.
+ASOF='2026-11-13'  # latest settled US close (Fri 13 Nov): 89 of 91 names moved at full precision (OWL US and
+# IGG LN unchanged). The workbook was saved Sun 15 Nov at 13:45 UTC; the weekend rows are dropped by the weekday filter.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -30,6 +29,25 @@ SECTORS = {
 }
 SECNAMES = [t for v in SECTORS.values() for t in v]   # canonical coverage drives the universe
 has = {t: (t in data.columns and int(data[t].notna().sum())>0) for t in SECNAMES}
+
+# --- CARRY (investor decision 2026-11-15). When a coverage name's workbook column comes back EMPTY (a failed
+# Bloomberg pull, not a delisting), keep the history already sourced from earlier workbooks instead of dropping
+# the name: its values are re-keyed by date from data.json / cal_pe.json at the pinned commit, and every date
+# after that file's asof stays null (nothing is filled forward, so nothing is invented). Applies only while the
+# column is empty; once a workbook carries the name again, its own values are used and the entry should go.
+# IGG LN: both columns (FY+1 and calendarized) empty in the 2026-11-15 workbook although IG Group traded normally.
+import subprocess
+CARRY = {'IGG LN': '68263bc'}   # ticker -> commit whose data.json/cal_pe.json hold the last sourced values
+CARRIED, CARRIED_CAL = {}, {}
+for _t, _sha in CARRY.items():
+    if has.get(_t):
+        print(f'CARRY: {_t} has data in this workbook again; remove its CARRY entry'); continue
+    _src = json.loads(subprocess.check_output(['git', 'show', f'{_sha}:data.json']))
+    CARRIED[_t] = dict(zip(_src['dates'], _src['pe'][_t]))
+    _cs = json.loads(subprocess.check_output(['git', 'show', f'{_sha}:cal_pe.json']))['series'].get(_t)
+    if _cs: CARRIED_CAL[_t] = _cs
+    has[_t] = True
+    print(f'CARRY: {_t} empty in this workbook; carrying its sourced history to {_src["asof"]} from {_sha}')
 excluded = [t for t in SECNAMES if not has[t]]         # coverage names absent/empty in this workbook
 SECTORS_F = {k:[t for t in v if has[t]] for k,v in SECTORS.items()}
 sec_of = {t:k for k,v in SECTORS_F.items() for t in v}
@@ -38,6 +56,8 @@ DATES=[d.strftime('%Y-%m-%d') for d in data.index]
 PE={}
 for t in SECNAMES:
     if not has[t]: continue
+    if t in CARRIED:
+        PE[t] = [CARRIED[t].get(d) for d in DATES]; continue
     col=data[t]
     PE[t]=[ (None if pd.isna(v) else round(float(v),2)) for v in col.values ]
 
@@ -92,6 +112,12 @@ if CAL_DATES_COL is not None:
         s_ = s_[(s_.index <= ASOF) & (s_.index >= data.index[0]) & (s_.index.dayofweek < 5)].dropna()
         if len(s_):
             CAL[t] = dict(dates=[d.strftime('%Y-%m-%d') for d in s_.index], pe=[round(float(v), 2) for v in s_.values])
+    for _t, _cs in CARRIED_CAL.items():   # CARRY (above): the name's calendarized series from the pinned commit
+        if _t in CAL: continue
+        _keep = [(d, v) for d, v in zip(_cs['dates'], _cs['pe']) if DATES[0] <= d <= ASOF]
+        if _keep: CAL[_t] = dict(dates=[d for d, _ in _keep], pe=[v for _, v in _keep])
+    _order = [str(raw.iloc[2, c]).strip() for c in range(CAL_DATES_COL + 1, raw.shape[1])]   # keep column order
+    CAL = {t: CAL[t] for t in sorted(CAL, key=lambda t: _order.index(t) if t in _order else len(_order))}
     _f = str(raw.iloc[4, CAL_DATES_COL + 1]).strip()
     open('cal_pe.json', 'w').write(json.dumps(dict(asof=ASOF, formula=_f, series=CAL), separators=(',', ':')))
     print('calendarized series:', len(CAL), sorted(CAL))
