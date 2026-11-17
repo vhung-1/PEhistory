@@ -13,9 +13,8 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-16'  # latest settled US close (Mon 16 Nov): 89 of 91 names moved at full precision (ADYEN NA
-# unchanged; IGG LN empty, see CARRY). The workbook was saved Tue 17 Nov at 07:48 UTC, before any market opened;
-# the Tuesday row is excluded by this cap.
+ASOF='2026-11-17'  # Tue 17 Nov, a same-day pull saved after the US close (22:16 UTC; CLAUDE.md §7a exception):
+# all 91 names moved at full precision, IGG LN included (the new Jersey listing's first value, held out by CARRY).
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -38,17 +37,23 @@ has = {t: (t in data.columns and int(data[t].notna().sum())>0) for t in SECNAMES
 # column is empty; once a workbook carries the name again, its own values are used and the entry should go.
 # IGG LN: both columns (FY+1 and calendarized) empty in the 2026-11-15 workbook although IG Group traded normally.
 import subprocess
-CARRY = {'IGG LN': '68263bc'}   # ticker -> commit whose data.json/cal_pe.json hold the last sourced values
+# HOLD mode (investor decision 2026-11-17): the 2026-11-17 after-close workbook's IGG LN column carries the NEW Jersey listing
+# (one value, 6.80x on 2026-11-17, no history; S&P has no price for it yet). Until the investor decides to join the
+# two listings, the old listing's history stays carried and the new listing's values are left out.
+CARRY = {'IGG LN': ('68263bc', 'hold')}   # ticker -> (commit with the last sourced values, 'empty' | 'hold')
 CARRIED, CARRIED_CAL = {}, {}
-for _t, _sha in CARRY.items():
-    if has.get(_t):
+for _t, (_sha, _mode) in CARRY.items():
+    if has.get(_t) and _mode != 'hold':
         print(f'CARRY: {_t} has data in this workbook again; remove its CARRY entry'); continue
+    if has.get(_t):
+        _wb = data[_t].dropna()
+        print(f'CARRY (hold): {_t} workbook values left out: {[(d.strftime("%Y-%m-%d"), round(float(v), 2)) for d, v in _wb.items()][-5:]}')
     _src = json.loads(subprocess.check_output(['git', 'show', f'{_sha}:data.json']))
     CARRIED[_t] = dict(zip(_src['dates'], _src['pe'][_t]))
     _cs = json.loads(subprocess.check_output(['git', 'show', f'{_sha}:cal_pe.json']))['series'].get(_t)
     if _cs: CARRIED_CAL[_t] = _cs
     has[_t] = True
-    print(f'CARRY: {_t} empty in this workbook; carrying its sourced history to {_src["asof"]} from {_sha}')
+    print(f'CARRY: {_t} {"held" if _mode == "hold" else "empty in this workbook"}; carrying its sourced history to {_src["asof"]} from {_sha}')
 excluded = [t for t in SECNAMES if not has[t]]         # coverage names absent/empty in this workbook
 SECTORS_F = {k:[t for t in v if has[t]] for k,v in SECTORS.items()}
 sec_of = {t:k for k,v in SECTORS_F.items() for t in v}
@@ -114,7 +119,7 @@ if CAL_DATES_COL is not None:
         if len(s_):
             CAL[t] = dict(dates=[d.strftime('%Y-%m-%d') for d in s_.index], pe=[round(float(v), 2) for v in s_.values])
     for _t, _cs in CARRIED_CAL.items():   # CARRY (above): the name's calendarized series from the pinned commit
-        if _t in CAL: continue
+        if _t in CAL and CARRY[_t][1] != 'hold': continue
         _keep = [(d, v) for d, v in zip(_cs['dates'], _cs['pe']) if DATES[0] <= d <= ASOF]
         if _keep: CAL[_t] = dict(dates=[d for d, _ in _keep], pe=[v for _, v in _keep])
     _order = [str(raw.iloc[2, c]).strip() for c in range(CAL_DATES_COL + 1, raw.shape[1])]   # keep column order
