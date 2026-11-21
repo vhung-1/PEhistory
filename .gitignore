@@ -14,3 +14,7 @@ _site/
 *.xlsx
 # chart PNGs for the daily email — built by mkcharts.mjs during the Pages deploy
 charts/
+# GS factor page inputs (mkfactors.py) — licensed Goldman Sachs data, never commit or publish
+factor_weekly.json
+factor_series.json
+factor_pairs.json
