@@ -13,8 +13,8 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-19'  # latest settled US close (Thu 19 Nov): 89 of 91 names moved at full precision (ENX FP and SAVE SS
-# unchanged). The workbook was saved Fri 20 Nov at 07:39 UTC, before any market opened; the Friday row is excluded by this cap.
+ASOF='2026-11-23'  # latest settled US close (Mon 23 Nov): all 91 names moved at full precision. The workbook was
+# saved Tue 24 Nov at 07:17 UTC, before any market opened; the Tuesday row is excluded by this cap.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -120,7 +120,10 @@ for _t,_ds in DROP.items():
 # coverage tickers only, 2 dp. A missing value stays missing; nothing is filled.
 CAL = {}
 if CAL_DATES_COL is not None:
-    _cd = pd.to_datetime(raw.iloc[5:, CAL_DATES_COL], errors='coerce')
+    _cdr = raw.iloc[5:, CAL_DATES_COL]
+    # Since the 2026-11-24 workbook this column can hold Excel serial numbers (43831 = 2020-01-01) instead of dates.
+    _num = pd.to_numeric(_cdr, errors='coerce')
+    _cd = pd.to_datetime(_num, unit='D', origin='1899-12-30') if _num.notna().sum() > 0.9 * _cdr.notna().sum() else pd.to_datetime(_cdr, errors='coerce')
     for c in range(CAL_DATES_COL + 1, raw.shape[1]):
         t = str(raw.iloc[2, c]).strip()
         if t not in SECNAMES: continue
