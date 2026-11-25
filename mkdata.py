@@ -13,8 +13,8 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-23'  # latest settled US close (Mon 23 Nov): all 91 names moved at full precision. The workbook was
-# saved Tue 24 Nov at 07:17 UTC, before any market opened; the Tuesday row is excluded by this cap.
+ASOF='2026-11-24'  # latest settled US close (Tue 24 Nov): all 91 names moved at full precision. The workbook was
+# saved Wed 25 Nov at 07:48 UTC, before any market opened; the Wednesday row is excluded by this cap.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
