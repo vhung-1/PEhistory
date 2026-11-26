@@ -13,8 +13,8 @@ assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 data=data[data.index.notna()].sort_index()
-ASOF='2026-11-24'  # latest settled US close (Tue 24 Nov): all 91 names moved at full precision. The workbook was
-# saved Wed 25 Nov at 07:48 UTC, before any market opened; the Wednesday row is excluded by this cap.
+ASOF='2026-11-25'  # latest settled US close (Wed 25 Nov): all 95 names moved at full precision. The workbook was
+# saved Thu 26 Nov (Thanksgiving, US market shut) at 09:25 UTC; the Thursday row is excluded by this cap.
 data=data[data.index<=ASOF]
 data=data[data.index.dayofweek<5]  # exclude weekend rows (Sat/Sun); series are trading-day only
 
@@ -23,7 +23,7 @@ SECTORS = {
  'Info Services': ['SPGI US','MCO US','MSCI US','FDS US','EFX US','TRU US','EXPN LN','FICO US','VRSK US'],
  'Payments & Fintech': ['V US','MA US','PYPL US','XYZ US','ADYEN NA','TOST US','SHOP US','SOFI US','FISV US','FIS US','GPN US','JKHY US','CPAY US','WEX US','AFRM US','KLAR US','BILL US','CHYM US','MQ US','FOUR US','WISE LN','RELY US','WU US','NAVN US','INTU US','DAVE US'],
  'M&A Boutiques': ['LAZ US','EVR US','MC US','HLI US','PWP US','PJT US','PIPR US'],
- 'Alternatives': ['PGHN SW','EQT SS','CVC NA','ICG LN','ARES US','APO US','BX US','KKR US','OWL US','CG US','BAM US','TPG US','STEP US','HLNE US'],
+ 'Alternatives': ['PGHN SW','EQT SS','CVC NA','ICG LN','ARES US','APO US','BX US','KKR US','OWL US','CG US','BAM US','TPG US','STEP US','HLNE US','BPT LN'],
  'Traditional AM': ['BLK US','TROW US','DWS GY','AMUN FP','AB US','BEN US','IVZ US','AMP US','EMG LN','AMG US'],
  'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQN SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US','AZA SS','SAVE SS','IGG LN','AJB LN'],
 }
