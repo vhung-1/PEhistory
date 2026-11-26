@@ -24,8 +24,8 @@ SECTORS = {
  'Payments & Fintech': ['V US','MA US','PYPL US','XYZ US','ADYEN NA','TOST US','SHOP US','SOFI US','FISV US','FIS US','GPN US','JKHY US','CPAY US','WEX US','AFRM US','KLAR US','BILL US','CHYM US','MQ US','FOUR US','WISE LN','RELY US','WU US','NAVN US','INTU US','DAVE US'],
  'M&A Boutiques': ['LAZ US','EVR US','MC US','HLI US','PWP US','PJT US','PIPR US'],
  'Alternatives': ['PGHN SW','EQT SS','CVC NA','ICG LN','ARES US','APO US','BX US','KKR US','OWL US','CG US','BAM US','TPG US','STEP US','HLNE US','BPT LN'],
- 'Traditional AM': ['BLK US','TROW US','DWS GY','AMUN FP','AB US','BEN US','IVZ US','AMP US','EMG LN','AMG US'],
- 'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQN SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US','AZA SS','SAVE SS','IGG LN','AJB LN'],
+ 'Traditional AM': ['BLK US','TROW US','DWS GY','AMUN FP','AB US','BEN US','IVZ US','EMG LN','AMG US'],
+ 'Wealth & Brokers': ['SCHW US','LPLA US','HOOD US','IBKR US','COIN US','RJF US','SF US','WLTH US','ETOR US','SQN SW','FTK GY','BGN IM','FBK IM','CRCL US','FIGR US','AZA SS','SAVE SS','IGG LN','AJB LN','AMP US'],  # AMP (Ameriprise) moved from Traditional AM, investor request 2026-11-26
 }
 SECNAMES = [t for v in SECTORS.values() for t in v]   # canonical coverage drives the universe
 has = {t: (t in data.columns and int(data[t].notna().sum())>0) for t in SECNAMES}
