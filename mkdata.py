@@ -9,7 +9,15 @@ CAL_DATES_COL = next((c for c in range(1, raw.shape[1]) if _hdr[c] == 'DATES'), 
 MAIN_END = CAL_DATES_COL if CAL_DATES_COL is not None else raw.shape[1]
 tickers=[str(x).strip() for x in raw.iloc[2,1:MAIN_END].tolist()]
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
-data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
+# A P/E cell can carry a date number format (DAVE US in the 2026-11-26 workbook: 10.40x shows as
+# 1900-01-10 09:31), which pandas reads as a datetime. Convert such cells back to the Excel serial
+# they store, which IS the sourced value, instead of letting to_numeric discard them as non-numeric.
+import datetime as _dt
+from openpyxl.utils.datetime import to_excel as _to_excel
+def _cellnum(v):
+    if isinstance(v, (_dt.datetime, pd.Timestamp)): return float(_to_excel(pd.Timestamp(v).to_pydatetime()))
+    return v
+data=raw.iloc[5:,1:MAIN_END].map(_cellnum).apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
 # A ticker typed into a second FY+1 column (AMP US in column CV of the 2026-11-26 afternoon workbook) is dropped
 # only if that column is EMPTY; two copies that both carry values still stop the build.
 _keep=[]
@@ -140,7 +148,7 @@ if CAL_DATES_COL is not None:
         t = str(raw.iloc[2, c]).strip()
         if t not in SECNAMES: continue
         assert t not in CAL, f'duplicate calendarized column for {t}'
-        s_ = pd.Series(pd.to_numeric(raw.iloc[5:, c], errors='coerce').values, index=_cd.values)
+        s_ = pd.Series(pd.to_numeric(raw.iloc[5:, c].map(_cellnum), errors='coerce').values, index=_cd.values)
         s_ = s_[s_.index.notna()].sort_index()
         s_ = s_[(s_.index <= ASOF) & (s_.index >= data.index[0]) & (s_.index.dayofweek < 5)].dropna()
         if len(s_):
