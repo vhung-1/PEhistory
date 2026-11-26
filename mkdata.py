@@ -8,10 +8,18 @@ _hdr = [str(x).strip().upper() for x in raw.iloc[4].tolist()]
 CAL_DATES_COL = next((c for c in range(1, raw.shape[1]) if _hdr[c] == 'DATES'), None)
 MAIN_END = CAL_DATES_COL if CAL_DATES_COL is not None else raw.shape[1]
 tickers=[str(x).strip() for x in raw.iloc[2,1:MAIN_END].tolist()]
-_named=[t for t in tickers if t and t!='nan']
-assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 dates=pd.to_datetime(raw.iloc[5:,0],errors='coerce')
 data=raw.iloc[5:,1:MAIN_END].apply(pd.to_numeric,errors='coerce'); data.columns=tickers; data.index=dates
+# A ticker typed into a second FY+1 column (AMP US in column CV of the 2026-11-26 afternoon workbook) is dropped
+# only if that column is EMPTY; two copies that both carry values still stop the build.
+_keep=[]
+for _i,_t in enumerate(tickers):
+    _dup=_t and _t!='nan' and tickers.count(_t)>1
+    if _dup and data.iloc[:,_i].notna().sum()==0: print(f'  dropping empty duplicate FY+1 column for {_t} (sheet column {_i+1})'); continue
+    _keep.append(_i)
+data=data.iloc[:,_keep]; tickers=[tickers[i] for i in _keep]
+_named=[t for t in tickers if t and t!='nan']
+assert len(_named)==len(set(_named)), 'duplicate tickers in the FY+1 block'
 data=data[data.index.notna()].sort_index()
 ASOF='2026-11-25'  # latest settled US close (Wed 25 Nov): all 95 names moved at full precision. The workbook was
 # saved Thu 26 Nov (Thanksgiving, US market shut) at 09:25 UTC; the Thursday row is excluded by this cap.
